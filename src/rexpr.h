@@ -15,7 +15,6 @@
         +       повторение символа 1 или более раз
         ()      объединение правил
         []      один любой символ из набора
-        |       логическое или "ИЛИ"
         TODO
         /       экранирование символов выше
 */
@@ -29,21 +28,28 @@ enum rexpr_object_type {
         rexpr_object_type_ROUND_BRACKETS_CLOSE,
         rexpr_object_type_SQUARE_BRACKETS_OPEN,
         rexpr_object_type_SQUARE_BRACKETS_CLOSE,
-        rexpr_object_type_LINE,
         rexpr_object_type_SLASH,
         rexpr_object_type_STRING,
+        rexpr_object_type_CH_RANGE,
         
         /*Параметры*/
+        rexpr_object_type_start_main,
         rexpr_object_type_start_ch = rexpr_object_type_DOT,
         rexpr_object_type_end_ch = rexpr_object_type_SLASH,
         rexpr_object_type_escape_ch = rexpr_object_type_SLASH,
         rexpr_object_type_unknown_ch = rexpr_object_type_STRING
 };
 
-typedef struct rexpr_object_str rexpr_object_str;
 struct rexpr_object_str {
         char * str;
         size_t len;
+};
+
+struct rexpr_object_ch_range {
+        struct rexpr_object_ch_range * next;
+        
+        char l;
+        char r;
 };
 
 typedef struct rexpr_object rexpr_object;
@@ -52,9 +58,13 @@ struct rexpr_object {
         rexpr_object * child;
         
         unsigned int type;
-        rexpr_object_str * str;
+        union {
+                unsigned int type;
+                struct rexpr_object_str str;
+                struct rexpr_object_ch_range * ch_range;
+        } data;
 };
 
-size_t rexpr_find(char * str, size_t str_len, char * opt, size_t opt_len, size_t * end_find_ch);
+ssize_t rexpr_find(char * str, ssize_t str_len, char * opt, ssize_t opt_len, ssize_t * end_find_ch);
 
 #endif

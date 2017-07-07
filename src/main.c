@@ -9,14 +9,16 @@
 
 int main(int args, char ** arg)
 {
-        char * expr = ".*1";
+        char * expr = "iam[c1*]";
         char * str = "hello1 iam1superstar";
+        ssize_t start, end;
         int fd;
         
         switch(args){
                 case 1:
-                        rexpr_find(str, 20, expr, 3, NULL);
-                        
+                        start = rexpr_find(str, 20, expr, 8, &end);
+                        if(start == -1)
+                                PRINT("ERROR\n");
                         break;
                 case 3:
                         fd = open(arg[2], O_RDONLY);

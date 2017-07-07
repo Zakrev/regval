@@ -1,6 +1,6 @@
 PHONY: help all clean
 
-all:
+all:    clean
 	mkdir -p bin
 	gcc -Wall -o bin/main src/*.c
 	
