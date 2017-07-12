@@ -493,6 +493,11 @@ static int parse_rexpr_object(rexpr_object * parent, char * opt, ssize_t start, 
         return 0;
 }
 
+static int search_rexpr_object(rexpr_object * parent, char * str, ssize_t * start, ssize_t * end)
+{
+        
+}
+
 ssize_t rexpr_find(char * str, ssize_t str_len, char * opt, ssize_t opt_len, ssize_t * end_find_ch)
 {
         /*

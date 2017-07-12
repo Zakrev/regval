@@ -65,6 +65,11 @@ struct rexpr_object {
         } data;
 };
 
+enum rexpr_object_answer_type {
+        rexpr_object_answer_type_BREAK,
+        rexpr_object_answer_type_CONTINUE
+};
+
 ssize_t rexpr_find(char * str, ssize_t str_len, char * opt, ssize_t opt_len, ssize_t * end_find_ch);
 
 #endif
