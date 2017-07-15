@@ -520,19 +520,22 @@ static int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t s
         return 0;
 }
 
+
+
+static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end);
 static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
 {
         if(parent == NULL){
                 PINF("parent is NULL");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
         }
         if(parent->child == NULL){
                 PINF("child is NULL");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
         }
         if(str == NULL){
                 PINF("str is NULL");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
         }
         ssize_t start_S = *start;
         ssize_t start_S1;
@@ -543,7 +546,9 @@ static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, 
         while(1)
         switch(ro->type){
                 case rexpr_object_type_ROUND_BRACKETS_OPEN:
-                                break;
+                        if(rexpr_check_status_SUCCESS != check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end))
+                                goto break_while;
+                        break;
                 case rexpr_object_type_SQUARE_BRACKETS_OPEN:
                         if(start_S > end)
                                 goto break_while;
@@ -595,15 +600,15 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
 {
         if(parent == NULL){
                 PINF("parent is NULL");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
         }
         if(parent->child == NULL){
                 PINF("child is NULL");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
         }
         if(str == NULL){
                 PINF("str is NULL");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
         }
         ssize_t start_S = *start;
         ssize_t start_S1;
@@ -614,7 +619,9 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
         while(1)
         switch(ro->type){
                 case rexpr_object_type_ROUND_BRACKETS_OPEN:
-                                break;
+                        if(rexpr_check_status_SUCCESS != check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end))
+                                goto break_while;
+                        break;
                 case rexpr_object_type_SQUARE_BRACKETS_OPEN:
                         if(start_S > end)
                                 goto break_while;
@@ -668,6 +675,103 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
         return rexpr_check_status_UNSUCCESS;
 }
 
+static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
+{
+        if(parent == NULL){
+                PINF("parent is NULL");
+                return rexpr_check_status_UNSUCCESS;
+        }
+        if(parent->child == NULL){
+                PINF("child is NULL");
+                return rexpr_check_status_UNSUCCESS;
+        }
+        if(str == NULL){
+                PINF("str is NULL");
+                return rexpr_check_status_UNSUCCESS;
+        }
+        ssize_t start_S = *start;
+        rexpr_object * ro;
+        rexpr_object_ch_range * ch_range;
+        unsigned int ret = rexpr_check_status_UNSUCCESS;
+        int i;
+        
+        ro = parent->child;
+        while(ro != NULL){
+                if(start_S > end){
+                        ret = rexpr_check_status_END_OF_LINE;
+                        goto break_while;
+                }
+                switch(ro->type){
+                        case rexpr_object_type_STAR:
+                                ret = check_str_rexpr_object_STAR(ro, str, &start_S, end);
+                                if(ret != rexpr_check_status_SUCCESS)
+                                        goto break_while;
+                                break;
+                        case rexpr_object_type_PLUS:
+                                ret = check_str_rexpr_object_PLUS(ro, str, &start_S, end);
+                                if(ret != rexpr_check_status_SUCCESS)
+                                        goto break_while;
+                                break;
+                        case rexpr_object_type_ROUND_BRACKETS_OPEN:
+                                ret = check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end);
+                                if(ret != rexpr_check_status_SUCCESS)
+                                        goto break_while;
+                                break;
+                        case rexpr_object_type_SQUARE_BRACKETS_OPEN:
+                                ch_range = ro->data.ch_range;
+                                while(ch_range != NULL){
+                                        if(ch_range->r == '\0'){
+                                                if(ch_range->l == str[start_S]){
+                                                        start_S += 1;
+                                                        ret = rexpr_check_status_SUCCESS;
+                                                        break;
+                                                }
+                                        } else {
+                                                if(ch_range->l <= str[start_S] 
+                                                        && ch_range->r >= str[start_S]){
+                                                        start_S += 1;
+                                                        ret = rexpr_check_status_SUCCESS;
+                                                        break;
+                                                }
+                                        }
+                                        ch_range = ch_range->next;
+                                }
+                                if(ch_range == NULL){
+                                        ret = rexpr_check_status_UNSUCCESS;
+                                        goto break_while;
+                                }
+                                break;
+                        case rexpr_object_type_STRING:
+                                for(i = 0; i < ro->data.str.len; i++){
+                                        if(start_S > end){
+                                                ret = rexpr_check_status_END_OF_LINE;
+                                                goto break_while;
+                                        }
+                                        if(ro->data.str.str[i] != str[start_S]){
+                                                ret = rexpr_check_status_UNSUCCESS;
+                                                goto break_while;
+                                        }
+                                        start_S += 1;
+                                }
+                                ret = rexpr_check_status_SUCCESS;
+                                break;
+                        case rexpr_object_type_DOT:
+                                start_S += 1;
+                                ret = rexpr_check_status_SUCCESS;
+                                break;
+                        default:
+                                PINF("unexpected rexpr_object type");
+                                return rexpr_check_status_UNSUCCESS;
+                }
+                ro = ro->next;
+        }
+        break_while:
+        if(ret == rexpr_check_status_SUCCESS)
+                *start = start_S;
+        
+        return ret;
+}
+
 static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end)
 {
         /*
@@ -679,15 +783,19 @@ static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize
         */
         if(parent == NULL){
                 PINF("parent is NULL");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
+        }
+        if(parent->child == NULL){
+                PINF("child is NULL");
+                return rexpr_check_status_UNSUCCESS;
         }
         if(str == NULL){
                 PINF("str is NULL");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
         }
         if(parent->type != rexpr_object_type_start_main){
                 PINF("parent not rexpr_object_type_start_main");
-                return 1;
+                return rexpr_check_status_UNSUCCESS;
         }
         ssize_t start_S = start;
         rexpr_object * ro;
@@ -697,6 +805,10 @@ static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize
         
         ro = parent->child;
         while(ro != NULL){
+                if(start_S > *end){
+                        ret = rexpr_check_status_END_OF_LINE;
+                        goto break_while;
+                }
                 switch(ro->type){
                         case rexpr_object_type_STAR:
                                 ret = check_str_rexpr_object_STAR(ro, str, &start_S, *end);
@@ -709,12 +821,11 @@ static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize
                                         goto break_while;
                                 break;
                         case rexpr_object_type_ROUND_BRACKETS_OPEN:
+                                ret = check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, *end);
+                                if(ret != rexpr_check_status_SUCCESS)
+                                        goto break_while;
                                 break;
                         case rexpr_object_type_SQUARE_BRACKETS_OPEN:
-                                if(start_S > *end){
-                                        ret = rexpr_check_status_END_OF_LINE;
-                                        goto break_while;
-                                }
                                 ch_range = ro->data.ch_range;
                                 while(ch_range != NULL){
                                         if(ch_range->r == '\0'){
@@ -753,10 +864,6 @@ static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize
                                 ret = rexpr_check_status_SUCCESS;
                                 break;
                         case rexpr_object_type_DOT:
-                                if(start_S > *end){
-                                        ret = rexpr_check_status_END_OF_LINE;
-                                        goto break_while;
-                                }
                                 start_S += 1;
                                 ret = rexpr_check_status_SUCCESS;
                                 break;

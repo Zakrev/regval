@@ -10,8 +10,8 @@
 
 int main(int args, char ** arg)
 {
-        char * opt = "[][[]";
-        char * str = "Hello, I'am su++///per+*s[]t*ar.\nAnd I'am really cool.\n";
+        char * opt = "([a-z]+[,' \n]*)*";
+        char * str = "Hello, I'am superstar.\nAnd I'am really cool.\n";
         char tmp[256];
         ssize_t start, end, stmp;
         int fd;
