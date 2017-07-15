@@ -19,6 +19,12 @@
         /       экранирование символов выше
 */
 
+enum rexpr_check_status {
+        rexpr_check_status_SUCCESS,
+        rexpr_check_status_UNSUCCESS,
+        rexpr_check_status_END_OF_LINE
+};
+
 enum rexpr_object_type {
         /*Типы объектов*/
         rexpr_object_type_DOT,
@@ -45,6 +51,7 @@ struct rexpr_object_str {
         size_t len;
 };
 
+typedef struct rexpr_object_ch_range rexpr_object_ch_range;
 struct rexpr_object_ch_range {
         struct rexpr_object_ch_range * next;
         
@@ -70,6 +77,6 @@ enum rexpr_object_answer_type {
         rexpr_object_answer_type_CONTINUE
 };
 
-ssize_t rexpr_find(char * str, ssize_t str_len, char * opt, ssize_t opt_len, ssize_t * end_find_ch);
+ssize_t rexpr_find(const char * str, ssize_t str_len, const char * opt, ssize_t opt_len, ssize_t * end_find_ch);
 
 #endif

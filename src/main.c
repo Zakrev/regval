@@ -4,21 +4,32 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "rexpr.h"
 
 int main(int args, char ** arg)
 {
-        char * expr = "iam[c1*]";
-        char * str = "hello1 iam1superstar";
-        ssize_t start, end;
+        char * opt = "+++++";
+        char * str = "Hello, I'am su///per+*st*ar.\nAnd I'am really cool.\n";
+        char tmp[256];
+        ssize_t start, end, stmp;
         int fd;
         
         switch(args){
                 case 1:
-                        start = rexpr_find(str, 20, expr, 8, &end);
-                        if(start == -1)
-                                PRINT("ERROR\n");
+                        stmp = start = 0;
+                        while(stmp >= 0){
+                                stmp = rexpr_find(str + start, strlen(str + start), opt, strlen(opt), &end);
+                                if(stmp >= 0){
+                                        end += start;
+                                        start += stmp;
+                                        memcpy(tmp, str + start, end - start + 1);
+                                        tmp[end - start + 1] = '\0';
+                                        printf("\tFOUND:%lld\n\'%s\'\n", (long long)(end - start + 1),tmp);
+                                        start += 1;
+                                }
+                        }
                         break;
                 case 3:
                         fd = open(arg[2], O_RDONLY);
