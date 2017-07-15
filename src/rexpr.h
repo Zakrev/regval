@@ -16,7 +16,6 @@
         ()      объединение правил
         []      один любой символ из набора
         TODO
-        /       экранирование символов выше
 */
 
 enum rexpr_check_status {
@@ -34,15 +33,13 @@ enum rexpr_object_type {
         rexpr_object_type_ROUND_BRACKETS_CLOSE,
         rexpr_object_type_SQUARE_BRACKETS_OPEN,
         rexpr_object_type_SQUARE_BRACKETS_CLOSE,
-        rexpr_object_type_SLASH,
         rexpr_object_type_STRING,
         rexpr_object_type_CH_RANGE,
         
         /*Параметры*/
         rexpr_object_type_start_main,
         rexpr_object_type_start_ch = rexpr_object_type_DOT,
-        rexpr_object_type_end_ch = rexpr_object_type_SLASH,
-        rexpr_object_type_escape_ch = rexpr_object_type_SLASH,
+        rexpr_object_type_end_ch = rexpr_object_type_SQUARE_BRACKETS_CLOSE,
         rexpr_object_type_unknown_ch = rexpr_object_type_STRING
 };
 

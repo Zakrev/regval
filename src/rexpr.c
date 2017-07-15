@@ -1,6 +1,6 @@
 #include "rexpr.h"
 
-static char rexpr_object_type_to_ch[rexpr_object_type_end_ch + 1] = {'.', '*', '+', ')', '(', ']', '[', '/'};
+static char rexpr_object_type_to_ch[rexpr_object_type_end_ch + 1] = {'.', '*', '+', ')', '(', ']', '['};
 
 static int rexpr_object_type_to_int(char ch)
 {
@@ -16,17 +16,34 @@ static int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t s
 static int parse_rexpr_object_is_text(const char * opt, ssize_t start, ssize_t pos)
 {
         /*
-                Возвращает '1', если символ в позиции 'pos' экранируется
+                Функция проверяет экранируется ли символ в позиции 'pos'
+                Возвращает '1', если экранируется
                 Иначе '0'
+                Примеры:
+                        '+'       - не экранируется
+                        +'+'      - экранируется
+                        ++'+'     - не экранируется
+                        +++'+'    - экранируется
+                        ++++'+'   - не экранируется
+                        и т.д.
         */
-        if( (pos - 1) < start )
+        ssize_t i = pos - 1;
+        
+        if(i < start)
                 return 0;
-        if(opt[pos - 1] == rexpr_object_type_to_ch[rexpr_object_type_escape_ch]){
-                if( (pos - 2) < start )
-                        return 1;
-                if(opt[pos - 2] != rexpr_object_type_to_ch[rexpr_object_type_escape_ch])
-                        return 1;
+        while(1){
+                if(opt[pos] != opt[i]){
+                        i += 1;
+                        break;
+                }
+                if(i != start)
+                        i -= 1;
+                else
+                        break;
         }
+        if( (pos - i + 1) % 2 == 0)
+                return 1;
+        
         return 0;
 }
 
@@ -61,8 +78,7 @@ static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * 
         start_str = *end + 1;
         esc_count = 0;
         while( (start_str - 1) >= start ){
-                if(rexpr_object_type_to_int(opt[start_str - 1]) != rexpr_object_type_STRING 
-                                && rexpr_object_type_to_ch[rexpr_object_type_escape_ch] != opt[start_str - 1]){
+                if(rexpr_object_type_to_int(opt[start_str - 1]) != rexpr_object_type_STRING){
                         if(0 == parse_rexpr_object_is_text(opt, start, start_str - 1))
                                 break;
                         esc_count += 1;
@@ -77,7 +93,7 @@ static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * 
                 return 1;
         }
         for(idx = 0, idx2 = start_str; idx2 <= *end; idx2++, idx++){
-                if(opt[idx2] == rexpr_object_type_to_ch[rexpr_object_type_escape_ch])
+                if(rexpr_object_type_to_int(opt[idx2]) != rexpr_object_type_STRING)
                         idx2 += 1;
                 ro->data.str.str[idx] = opt[idx2];
         }
@@ -486,7 +502,6 @@ static int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t s
                                 } else
                                         return 1;
                                 break;
-                        case rexpr_object_type_SLASH:
                         case rexpr_object_type_STRING:
                                 if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
                                         return 1;
@@ -752,6 +767,8 @@ static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize
                 ro = ro->next;
         }
         break_while:
+        if(start >= start_S)
+                return rexpr_check_status_UNSUCCESS;
         if(ret == rexpr_check_status_SUCCESS)
                 *end = start_S - 1;
         
