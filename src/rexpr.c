@@ -828,6 +828,7 @@ static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize
                         case rexpr_object_type_SQUARE_BRACKETS_OPEN:
                                 ch_range = ro->data.ch_range;
                                 while(ch_range != NULL){
+                                        ret = rexpr_check_status_UNSUCCESS;
                                         if(ch_range->r == '\0'){
                                                 if(ch_range->l == str[start_S]){
                                                         start_S += 1;
@@ -844,6 +845,8 @@ static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize
                                         }
                                         ch_range = ch_range->next;
                                 }
+                                if(ret != rexpr_check_status_SUCCESS)
+                                        goto break_while;
                                 if(ch_range == NULL){
                                         ret = rexpr_check_status_UNSUCCESS;
                                         goto break_while;
