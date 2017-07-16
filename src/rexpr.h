@@ -43,6 +43,18 @@ enum rexpr_object_type {
         rexpr_object_type_unknown_ch = rexpr_object_type_STRING
 };
 
+#define rexpr_escape_init '\\'
+enum rexpr_escape_type {
+        /*Различные escape-символы для комад вида '\n'*/
+        rexpr_escape_type_NEWLINE,
+        rexpr_escape_type_TAB,
+        
+        /*Параметры*/
+        rexpr_escape_type_start_ch = rexpr_escape_type_NEWLINE,
+        rexpr_escape_type_end_ch = rexpr_escape_type_TAB,
+        rexpr_escape_type_unknown_ch
+};
+
 struct rexpr_object_str {
         char * str;
         size_t len;

@@ -1,7 +1,18 @@
 #include "rexpr.h"
 
-static char rexpr_object_type_to_ch[rexpr_object_type_end_ch + 1] = {'.', '*', '+', ')', '(', ']', '['};
+static char rexpr_escape_type_to_ch[rexpr_escape_type_end_ch + 1] = {'\n', '\t'};
+static char rexpr_escape_type_to_esc[rexpr_escape_type_end_ch + 1] = {'n', 't'};
+static int rexpr_escape_type_to_int(char ch)
+{
+        int i;
+        for(i = rexpr_escape_type_start_ch; i <= rexpr_escape_type_end_ch; i++){
+                if(rexpr_escape_type_to_esc[i] == ch)
+                        return i;
+        }
+        return rexpr_escape_type_unknown_ch;
+}
 
+static char rexpr_object_type_to_ch[rexpr_object_type_end_ch + 1] = {'.', '*', '+', ')', '(', ']', '['};
 static int rexpr_object_type_to_int(char ch)
 {
         int i;
@@ -345,6 +356,21 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                                         ro->next = parent->child;
                                         parent->child = ro;
                                         return 0;
+                                }
+                                if((*end - 1) >= start){
+                                        /* Если '*+' */
+                                        if(opt[*end - 1] == rexpr_escape_init){
+                                                /* Если '\+' */
+                                                if(rexpr_escape_type_to_int(opt[*end]) != rexpr_escape_type_unknown_ch){
+                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(
+                                                                        ro, 
+                                                                        rexpr_escape_type_to_ch[rexpr_escape_type_to_int(opt[*end])], 
+                                                                        '\0'))
+                                                                return 1;
+                                                        *end -= 2;
+                                                        continue;
+                                                }
+                                        }
                                 }
                                 if((*end - 2) >= start){
                                         /* Если '**+' */
