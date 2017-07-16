@@ -856,6 +856,45 @@ int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t star
         return ret;
 }
 
+void free_rexpr_objects(rexpr_object * parent)
+{
+        if(parent == NULL)
+                return;
+        if(parent->child == NULL)
+                return;
+                
+        rexpr_object * child, * c_tmp;
+        struct rexpr_object_ch_range * range, * r_tmp;
+        
+        switch(parent->type){
+                case rexpr_object_type_DOT:
+                        return;
+                case rexpr_object_type_start_main:
+                case rexpr_object_type_PLUS:
+                case rexpr_object_type_STAR:
+                case rexpr_object_type_ROUND_BRACKETS_OPEN:
+                        child = parent->child;
+                        while(child != NULL){
+                                free_rexpr_objects(child);
+                                c_tmp = child;
+                                child = child->next;
+                                free(c_tmp);
+                        }
+                        return;
+                case rexpr_object_type_SQUARE_BRACKETS_OPEN:
+                        range = parent->data.ch_range;
+                        while(range != NULL){
+                                r_tmp = range;
+                                range = range->next;
+                                free(r_tmp);
+                        }
+                        return;
+                case rexpr_object_type_STRING:
+                        free(parent->data.str.str);
+                        return;
+        }
+}
+
 ssize_t rexpr_find(const char * str, ssize_t str_len, const char * opt, ssize_t opt_len, ssize_t * end_substr)
 {
         /*
@@ -881,11 +920,13 @@ ssize_t rexpr_find(const char * str, ssize_t str_len, const char * opt, ssize_t 
                 switch(check_str_rexpr_object(&ro_main, str, start, &end)){
                         case rexpr_check_status_SUCCESS:
                                 *end_substr = end;
+                                free_rexpr_objects(&ro_main);
                                 return start;
                         default:
                                 start += 1;
                 }
         }
+        free_rexpr_objects(&ro_main);
         
         return -1;
 }

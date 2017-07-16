@@ -93,6 +93,8 @@ int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, s
         Функция не ищет подстроку в строке, а только проверяет совпадение, начиная с первого символа
 */
 int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end);
+/*Освобождает память из под структур*/
+void free_rexpr_objects(rexpr_object * parent);
 /*
         Пример использования
         str     - строка
