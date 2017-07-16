@@ -13,39 +13,6 @@ static int rexpr_object_type_to_int(char ch)
 }
 
 static int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end);
-static int parse_rexpr_object_is_text(const char * opt, ssize_t start, ssize_t pos)
-{
-        /*
-                Функция проверяет экранируется ли символ в позиции 'pos'
-                Возвращает '1', если экранируется
-                Иначе '0'
-                Примеры:
-                        '+'       - не экранируется
-                        +'+'      - экранируется
-                        ++'+'     - не экранируется
-                        +++'+'    - экранируется
-                        ++++'+'   - не экранируется
-                        и т.д.
-        */
-        ssize_t i = pos - 1;
-        
-        if(i < start)
-                return 0;
-        while(1){
-                if(opt[pos] != opt[i]){
-                        i += 1;
-                        break;
-                }
-                if(i != start)
-                        i -= 1;
-                else
-                        break;
-        }
-        if( (pos - i + 1) % 2 == 0)
-                return 1;
-        
-        return 0;
-}
 
 static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
@@ -63,7 +30,6 @@ static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * 
                 return 1;
         }
         ssize_t start_str;
-        size_t esc_count;
         size_t idx, idx2;
         rexpr_object * ro;
         
@@ -76,25 +42,18 @@ static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * 
         ro->next = NULL;
         
         start_str = *end + 1;
-        esc_count = 0;
         while( (start_str - 1) >= start ){
-                if(rexpr_object_type_to_int(opt[start_str - 1]) != rexpr_object_type_STRING){
-                        if(0 == parse_rexpr_object_is_text(opt, start, start_str - 1))
-                                break;
-                        esc_count += 1;
-                        start_str -= 2;
-                } else
-                        start_str -= 1;
+                if(rexpr_object_type_to_int(opt[start_str - 1]) != rexpr_object_type_STRING)
+                        break;
+                start_str -= 1;
         }
-        ro->data.str.len = (*end - start_str + 1) - esc_count;
+        ro->data.str.len = *end - start_str + 1;
         ro->data.str.str = malloc(sizeof(char) * ro->data.str.len);
         if(ro->data.str.str == NULL){
                 PERR("rexpr_object_str->str: malloc()");
                 return 1;
         }
         for(idx = 0, idx2 = start_str; idx2 <= *end; idx2++, idx++){
-                if(rexpr_object_type_to_int(opt[idx2]) != rexpr_object_type_STRING)
-                        idx2 += 1;
                 ro->data.str.str[idx] = opt[idx2];
         }
         *end = start_str - 1;
@@ -364,45 +323,63 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                         *end -= 1;
                         
                         while( *end >= start ){
+                                /*
+                                        Символ '*' в следующих коментах, обозначает любой один символ
+                                        Символ '+' - текущий
+                                */
                                 if(opt[*end] == rexpr_object_type_to_ch[rexpr_object_type_SQUARE_BRACKETS_CLOSE]){
-                                        if(0 == parse_rexpr_object_is_text(opt, start, *end)){
-                                                *end -= 1;
-                                                ro->next = parent->child;
-                                                parent->child = ro;
-                                                return 0;
+                                        /*
+                                                Если текущий символ закрывает этот объект
+                                        */
+                                        if((*end - 1) >= start){
+                                                if(opt[*end - 1] == rexpr_object_type_to_ch[rexpr_object_type_SQUARE_BRACKETS_CLOSE]){
+                                                        /*
+                                                                Если '[['
+                                                        */
+                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end], '\0'))
+                                                                return 1;
+                                                        *end -= 1;
+                                                }
                                         }
-                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end], '\0'))
-                                                return 1;
-                                        *end -= 2;
-                                        continue;
+                                        *end -= 1;
+                                        ro->next = parent->child;
+                                        parent->child = ro;
+                                        return 0;
                                 }
                                 if((*end - 2) >= start){
+                                        /* Если '**+' */
                                         if(opt[*end - 1] == '-'){
+                                                /* Если '*-+' */
                                                 if(opt[*end - 2] == rexpr_object_type_to_ch[rexpr_object_type_SQUARE_BRACKETS_CLOSE]){
-                                                        if(0 == parse_rexpr_object_is_text(opt, start, *end - 2)){
-                                                                if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end], '\0'))
-                                                                        return 1;
-                                                                if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 1], '\0'))
-                                                                        return 1;
-                                                                *end -= 3;
-                                                                ro->next = parent->child;
-                                                                parent->child = ro;
-                                                                return 0;
+                                                        /* Если '[-+' */
+                                                        if((*end - 3) >= start){
+                                                                if(opt[*end - 3] == rexpr_object_type_to_ch[rexpr_object_type_SQUARE_BRACKETS_CLOSE]){
+                                                                        /* Если '[[-+' */
+                                                                        if(opt[*end - 2] > opt[*end])
+                                                                                return 1;
+                                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 2], opt[*end]))
+                                                                                return 1;
+                                                                        *end -= 4;
+                                                                        ro->next = parent->child;
+                                                                        parent->child = ro;
+                                                                        return 0;
+                                                                }
                                                         }
-                                                        if(opt[*end - 2] > opt[*end])
+                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end], '\0'))
                                                                 return 1;
-                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 2], opt[*end]))
-                                                                return 1;
-                                                        *end -= 4;
-                                                        continue;
-                                                } else {
-                                                        if(opt[*end - 2] > opt[*end])
-                                                                return 1;
-                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 2], opt[*end]))
+                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 1], '\0'))
                                                                 return 1;
                                                         *end -= 3;
-                                                        continue;
+                                                        ro->next = parent->child;
+                                                        parent->child = ro;
+                                                        return 0;
                                                 }
+                                                if(opt[*end - 2] > opt[*end])
+                                                        return 1;
+                                                if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 2], opt[*end]))
+                                                        return 1;
+                                                *end -= 3;
+                                                continue;
                                         }
                                 }
                                 if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end], '\0'))
@@ -448,60 +425,30 @@ static int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t s
                 PRINT("parse_rexpr_object: parent: %c\n", rexpr_object_type_to_ch[parent->type]);
                 switch(rexpr_object_type_to_int(opt[*end])){
                         case rexpr_object_type_DOT:
-                                if(1 == parse_rexpr_object_is_text(opt, start, *end)){
-                                        if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
-                                                return 1;
-                                } else
-                                        if(0 != parse_rexpr_object_create_DOT(parent, opt, start, end))
+                                if(0 != parse_rexpr_object_create_DOT(parent, opt, start, end))
                                                 return 1;
                                 break;
                         case rexpr_object_type_STAR:
-                                if(1 == parse_rexpr_object_is_text(opt, start, *end)){
-                                        if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
-                                                return 1;
-                                } else
-                                        if(0 != parse_rexpr_object_create_STAR(parent, opt, start, end))
+                                if(0 != parse_rexpr_object_create_STAR(parent, opt, start, end))
                                                 return 1;
                                 break;
                         case rexpr_object_type_PLUS:
-                                if(1 == parse_rexpr_object_is_text(opt, start, *end)){
-                                        if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
-                                                return 1;
-                                } else
-                                        if(0 != parse_rexpr_object_create_PLUS(parent, opt, start, end))
+                                if(0 != parse_rexpr_object_create_PLUS(parent, opt, start, end))
                                                 return 1;
                                 break;
                         case rexpr_object_type_ROUND_BRACKETS_OPEN:
-                                if(1 == parse_rexpr_object_is_text(opt, start, *end)){
-                                        if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
-                                                return 1;
-                                } else
-                                        if(0 != parse_rexpr_object_create_ROUND_BRACKETS_OPEN(parent, opt, start, end))
+                                if(0 != parse_rexpr_object_create_ROUND_BRACKETS_OPEN(parent, opt, start, end))
                                                 return 1;
                                 break;
                         case rexpr_object_type_ROUND_BRACKETS_CLOSE:
-                                if(1 == parse_rexpr_object_is_text(opt, start, *end)){
-                                        if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
-                                                return 1;
-                                } else
-                                        if(0 != parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(parent, opt, start, end))
+                                if(0 != parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(parent, opt, start, end))
                                                 return 1;
                                 break;
                         case rexpr_object_type_SQUARE_BRACKETS_OPEN:
-                                if(1 == parse_rexpr_object_is_text(opt, start, *end)){
-                                        if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
-                                                return 1;
-                                } else
-                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(parent, opt, start, end))
+                                if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(parent, opt, start, end))
                                                 return 1;
                                 break;
                         case rexpr_object_type_SQUARE_BRACKETS_CLOSE:
-                                if(1 == parse_rexpr_object_is_text(opt, start, *end)){
-                                        if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
-                                                return 1;
-                                } else
-                                        return 1;
-                                break;
                         case rexpr_object_type_STRING:
                                 if(0 != parse_rexpr_object_create_STRING(parent, opt, start, end))
                                         return 1;
