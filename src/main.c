@@ -11,7 +11,10 @@
 
 int main(int args, char ** arg)
 {
-        char * opt = "[a-zA-z']+";
+        /*
+                Пример использования
+        */
+        char * opt = " [a-zA-z']+";
         char * str = "Hello, I'am superstar.\nAnd I'am really cool.\n";
         char tmp[256];
         ssize_t start, end, stmp;

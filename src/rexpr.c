@@ -23,8 +23,6 @@ static int rexpr_object_type_to_int(char ch)
         return rexpr_object_type_unknown_ch;
 }
 
-static int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end);
-
 static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
         PRINT("create_STRING:%lu - %ld\n", start, *end);
@@ -421,7 +419,7 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
         return 1;
 }
 
-static int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
+int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
         /*
                 Функция парсит регулярное выражение, создает его представление в структурах
@@ -745,7 +743,7 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
         return ret;
 }
 
-static int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end)
+int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end)
 {
         /*
                 Функция проверяет совпадение строки с регулярным выражением

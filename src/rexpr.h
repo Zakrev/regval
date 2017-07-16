@@ -14,7 +14,7 @@
         *       повторение символа 0 или более раз
         +       повторение символа 1 или более раз
         ()      объединение правил
-        []      один любой символ из набора
+        []      один любой символ из набора, всё интерпритируется как символы, необходимо экранировать только закрывающюю скобку '[['
         TODO
 */
 
@@ -45,7 +45,7 @@ enum rexpr_object_type {
 
 #define rexpr_escape_init '\\'
 enum rexpr_escape_type {
-        /*Различные escape-символы для комад вида '\n'*/
+        /*Различные escape-символы для комад вида '\n', используется только для SQUARE_BRACKETS '[a-z \n\t]'*/
         rexpr_escape_type_NEWLINE,
         rexpr_escape_type_TAB,
         
@@ -81,11 +81,26 @@ struct rexpr_object {
         } data;
 };
 
-enum rexpr_object_answer_type {
-        rexpr_object_answer_type_BREAK,
-        rexpr_object_answer_type_CONTINUE
-};
-
+/*
+        Функция парсит регулярное выражение, создает его представление в структурах
+*/
+int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end);
+/*
+        Функция проверяет совпадение строки с регулярным выражением
+        Если совпадения нет, значение end не изменяется и возвращается rexpr_check_status_UNSUCCESS
+        Если есть совпадение, то в end записывается последний символ совпавшей подстроки и возвращается rexpr_check_status_SUCCESS
+        Если при проверке закончилась строка, то возвращается rexpr_check_status_END_OF_LINE
+        Функция не ищет подстроку в строке, а только проверяет совпадение, начиная с первого символа
+*/
+int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end);
+/*
+        Пример использования
+        str     - строка
+        opt     - регулярное выражение
+        *end_substr   - последний символ найденой подстроки
+        Функция возвращает позицию первого символа найденой подстроки
+        Либо -1
+*/
 ssize_t rexpr_find(const char * str, ssize_t str_len, const char * opt, ssize_t opt_len, ssize_t * end_find_ch);
 
 #endif
