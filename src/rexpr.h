@@ -11,8 +11,8 @@
         Поиск можно проводить как в одной строке, так и в нескольких отдельных.
         Символы:
         .       один любой символ
-        *       повторение символа 0 или более раз
-        +       повторение символа 1 или более раз
+        *       повторение 0 или более раз
+        +       повторение 1 или более раз
         ()      объединение правил
         []      один любой символ из набора, всё интерпритируется как символы, необходимо экранировать только закрывающюю скобку '[['
         TODO
@@ -43,7 +43,18 @@ enum rexpr_object_type {
         rexpr_object_type_unknown_ch = rexpr_object_type_STRING
 };
 
-#define rexpr_escape_init '\\'
+enum rexpr_object_type_second {
+        /*Типы дополнительных объектов*/
+        rexpr_object_type_second_ESCAPE,
+        rexpr_object_type_second_NOT,
+        rexpr_object_type_second_OR,
+        
+        /*Параметры*/
+        rexpr_object_type_second_start_ch = rexpr_object_type_second_ESCAPE,
+        rexpr_object_type_second_end_ch = rexpr_object_type_second_OR,
+        rexpr_object_type_second_unknown_ch
+};
+
 enum rexpr_escape_type {
         /*Различные escape-символы для комад вида '\n', используется только для SQUARE_BRACKETS '[a-z \n\t]'*/
         rexpr_escape_type_NEWLINE,
@@ -85,16 +96,23 @@ struct rexpr_object {
         Функция парсит регулярное выражение, создает его представление в структурах
 */
 int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end);
+
+
 /*
         Функция проверяет совпадение строки с регулярным выражением
-        Если совпадения нет, значение end не изменяется и возвращается rexpr_check_status_UNSUCCESS
+        Если совпадения нет, возвращается rexpr_check_status_UNSUCCESS
         Если есть совпадение, то в end записывается последний символ совпавшей подстроки и возвращается rexpr_check_status_SUCCESS
         Если при проверке закончилась строка, то возвращается rexpr_check_status_END_OF_LINE
-        Функция не ищет подстроку в строке, а только проверяет совпадение, начиная с первого символа
+        В случае неудачи, *end останется в прежнем значении
+        Функция НЕ ИЩЕТ подстроку в строке, а только проверяет совпадение, начиная с первого символа
 */
 int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end);
+
+
 /*Освобождает память из под структур*/
 void free_rexpr_objects(rexpr_object * parent);
+
+
 /*
         Пример использования
         str     - строка
