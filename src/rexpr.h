@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "print.h"
 
@@ -71,12 +72,14 @@ struct rexpr_object_str {
         size_t len;
 };
 
+#define MAX_CH_LEN 2
+
 typedef struct rexpr_object_ch_range rexpr_object_ch_range;
 struct rexpr_object_ch_range {
         struct rexpr_object_ch_range * next;
         
-        char l;
-        char r;
+        char l[MAX_CH_LEN];
+        char r[MAX_CH_LEN];
 };
 
 typedef struct rexpr_object rexpr_object;

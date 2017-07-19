@@ -23,6 +23,18 @@ static int rexpr_object_type_to_int(char ch)
         return rexpr_object_type_unknown_ch;
 }
 
+static int is_one_byte_ch(char ch)
+{
+        /*
+                Функция возвращает 1, если символ ch однобайтовый
+                0, если это чать многобайтового символа
+        */
+        return (ch >> 7) != 0 ? 0 : 1;
+}
+
+/*
+        Функции парсинга регулярного выражения
+*/
 static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
         PRINT("create_STRING:%lu - %ld\n", start, *end);
@@ -53,14 +65,35 @@ static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * 
         switch(parent->type){
                 case rexpr_object_type_STAR:
                 case rexpr_object_type_PLUS:
-                        ro->data.str.len = 1;
-                        ro->data.str.str = malloc(sizeof(char));
-                        if(ro->data.str.str == NULL){
-                                PERR("rexpr_object_str->str: malloc()");
-                                return 1;
+                        switch (is_one_byte_ch(opt[*end]))
+                        {
+                                case 1:
+                                        ro->data.str.str = malloc(sizeof(char));
+                                        if(ro->data.str.str == NULL){
+                                                PERR("rexpr_object_str->str: malloc()");
+                                                return 1;
+                                        }
+                                        ro->data.str.len = 1;
+                                        ro->data.str.str[0] = opt[*end];
+                                        *end -= 1;
+                                        break;
+                                case 0:
+                                        if( (*end - 1) < start){
+                                                PINF("start > end");
+                                                return 1;
+                                        }
+                                        ro->data.str.str = malloc(sizeof(char) * 2);
+                                        if(ro->data.str.str == NULL){
+                                                PERR("rexpr_object_str->str: malloc()");
+                                                return 1;
+                                        }
+                                        ro->data.str.len = 2;
+                                        ro->data.str.str[1] = opt[*end];
+                                        ro->data.str.str[0] = opt[*end - 1];
+                                        *end -= 2;
+                                        break;
                         }
-                        ro->data.str.str[0] = opt[*end];
-                        *end -= 1;
+                        
                         break;
                 default:
                         start_str = *end + 1;
@@ -298,7 +331,7 @@ static int parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(rexpr_object * parent,
         return 1;
 }
 
-static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(rexpr_object * parent, char l, char r)
+static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(rexpr_object * parent, const char * l, ssize_t l_len, const char * r, ssize_t r_len)
 {
         PRINT("create_SQUARE_BRACKETS_OPEN_create_ch:%c - %c\n", l, r);
         if(parent == NULL){
@@ -312,8 +345,12 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(rexpr_object
                 PERR("struct rexpr_object_ch_range: malloc()");
                 return 1;
         }
-        ch_range->l = l;
-        ch_range->r = r;
+        bzero(ch_range->l, MAX_CH_LEN);
+        if(ch_range->l != NULL && l_len > 0)
+                memcpy(ch_range->l, l, l_len);
+        bzero(ch_range->r, MAX_CH_LEN);
+        if(ch_range->r != NULL && r_len > 0)
+                memcpy(ch_range->r, r, r_len);
         ch_range->next = NULL;
         if(parent->data.ch_range == NULL){
                 parent->data.ch_range = ch_range;
@@ -348,6 +385,8 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
         }
         ro->child = NULL;
         ro->next = NULL;
+        char escape_tmp;
+        unsigned int istb;
         
         switch(parent->type){
                 case rexpr_object_type_start_main:
@@ -371,7 +410,7 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                                                         /*
                                                                 Если '[['
                                                         */
-                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end], '\0'))
+                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt + *end, 1, NULL, 0))
                                                                 return 1;
                                                         *end -= 1;
                                                 }
@@ -386,14 +425,20 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                                         if(opt[*end - 1] == rexpr_object_type_second_to_ch[rexpr_object_type_second_ESCAPE]){
                                                 /* Если '\+' */
                                                 if(rexpr_escape_type_to_int(opt[*end]) != rexpr_escape_type_unknown_ch){
-                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(
-                                                                        ro, 
-                                                                        rexpr_escape_type_to_ch[rexpr_escape_type_to_int(opt[*end])], 
-                                                                        '\0'))
+                                                        escape_tmp = rexpr_escape_type_to_ch[rexpr_escape_type_to_int(opt[*end])];
+                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, &escape_tmp, 1, NULL, 0))
                                                                 return 1;
                                                         *end -= 2;
                                                         continue;
                                                 }
+                                        }
+                                }
+                                istb = 0;
+                                if(0 == is_one_byte_ch(opt[*end])){
+                                        /*Если текущий символ двубайтовый*/
+                                        if((*end - 1) >= start){
+                                                *end -= 1;
+                                                istb = 1;
                                         }
                                 }
                                 if((*end - 2) >= start){
@@ -407,7 +452,8 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                                                                         /* Если '[[-+' */
                                                                         if(opt[*end - 2] > opt[*end])
                                                                                 return 1;
-                                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 2], opt[*end]))
+                                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt + (*end - 2), 
+                                                                                istb == 1 ? 2 : 1, opt + *end, 1))
                                                                                 return 1;
                                                                         *end -= 4;
                                                                         ro->next = parent->child;
@@ -415,24 +461,28 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                                                                         return 0;
                                                                 }
                                                         }
-                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end], '\0'))
+                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt + *end, istb == 1 ? 2 : 1, NULL, 0))
                                                                 return 1;
-                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 1], '\0'))
+                                                        if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt + (*end - 1), 1, NULL, 0))
                                                                 return 1;
                                                         *end -= 3;
                                                         ro->next = parent->child;
                                                         parent->child = ro;
                                                         return 0;
                                                 }
-                                                if(opt[*end - 2] > opt[*end])
-                                                        return 1;
-                                                if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end - 2], opt[*end]))
+                                                if(0 == is_one_byte_ch(opt[*end - 2])){
+                                                        /*Если символ за '-' тоже двубайтовый*/
+                                                        if((*end - 3) >= start){
+                                                                istb = 2;
+                                                        }
+                                                }                                                
+                                                if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt + (*end - 2), istb > 0 ? 2 : 1, opt + *end, istb == 2 ? 2 : 1))
                                                         return 1;
                                                 *end -= 3;
                                                 continue;
                                         }
                                 }
-                                if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt[*end], '\0'))
+                                if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, opt + *end, istb == 1 ? 2 : 1, NULL, 0))
                                         return 1;
                                 *end -= 1;
                         }
@@ -517,8 +567,9 @@ int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, s
         return 0;
 }
 
-
-
+/*
+        Функции поиска
+*/
 static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end);
 static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
 {
