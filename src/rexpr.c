@@ -926,6 +926,7 @@ int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t star
         rexpr_object_ch_range * ch_range;
         unsigned int ret = rexpr_check_status_UNSUCCESS;
         int i;
+        unsigned int istb;
         
         ro = parent->child;
         while(ro != NULL){
@@ -956,13 +957,30 @@ int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t star
                         case rexpr_object_type_SQUARE_BRACKETS_OPEN:
                                 ch_range = ro->data.ch_range;
                                 while(ch_range != NULL){
-                                        if(ch_range->r == '\0'){
-                                                if(ch_range->l == str[start_S]){
-                                                        ret = rexpr_check_status_SUCCESS;
-                                                        start_S += 1;
-                                                        break;
+                                        istb = 0;
+                                        if(0 == is_one_byte_ch(str[start_S])){
+                                                /*Если текущий символ двубайтовый*/
+                                                if((start_S + 1) <= *end)
+                                                        istb = 1;
+                                        }
+                                        if(ch_range->r[0] == '\0'){
+                                                if(istb != 0){
+                                                        if(0 == memcmp(ch_range->l, str + start_S, 2)){
+                                                                ret = rexpr_check_status_SUCCESS;
+                                                                start_S += 2;
+                                                                break;
+                                                        }
+                                                } else {
+                                                        if(0 == memcmp(ch_range->l, str + start_S, 1)){
+                                                                ret = rexpr_check_status_SUCCESS;
+                                                                start_S += 2;
+                                                                break;
+                                                        }
                                                 }
                                         } else {
+                                        /*
+                                                if( 0 <= memcmp(str + i, st, 2) && 0 >= memcmp(str + i, ed, 2))
+                                        */
                                                 if(ch_range->l <= str[start_S] 
                                                         && ch_range->r >= str[start_S]){
                                                         ret = rexpr_check_status_SUCCESS;
