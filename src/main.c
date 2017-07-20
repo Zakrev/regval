@@ -9,13 +9,15 @@
 
 #include "rexpr.h"
 
+#define ALL_MATCHES 0   //1 - все подстроки
+
 int main(int args, char ** arg)
 {
         /*
                 Пример использования
         */
-        char * opt = "ll+";
-        char * str = "Hello, I'am superstar.\nAnd I'am really cool.\n";
+        char * opt = "[а-яА-Яa-zA-Z]+";
+        char * str = "Привет мир! Hello world! Как дела? How are you? БellеберDa\n";
         char tmp[256];
         ssize_t start, end, stmp;
         int fd;
@@ -32,8 +34,12 @@ int main(int args, char ** arg)
                                         start += stmp;
                                         memcpy(tmp, str + start, end - start + 1);
                                         tmp[end - start + 1] = '\0';
-                                        printf("\tFOUND:%lld\n\'%s\'\n", (long long)(end - start + 1),tmp);
+                                        printf("FOUND (pos/len) %lld/%lld / \'%s\'\n", (long long)start, (long long)(end - start + 1), tmp);
+#if ALL_MATCHES == 1
                                         start += 1;
+#else
+                                        start += end - start + 1;
+#endif
                                 }
                         }
                         break;
@@ -60,8 +66,12 @@ int main(int args, char ** arg)
                                         start += stmp;
                                         memcpy(tmp, file + start, end - start + 1);
                                         tmp[end - start + 1] = '\0';
-                                        printf("\tFOUND:%lld\n\'%s\'\n", (long long)(end - start + 1),tmp);
+                                        printf("FOUND:%lld / \'%s\'\n", (long long)(end - start + 1),tmp);
+#if ALL_MATCHES == 1
                                         start += 1;
+#else
+                                        start += end - start + 1;
+#endif
                                 }
                         }
                         munmap(file, file_size);

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "print.h"
+#include "debug_print.h"
 
 /*
         Поиск подстроки по регулярному выражению.
@@ -69,7 +69,7 @@ enum rexpr_escape_type {
 
 struct rexpr_object_str {
         char * str;
-        size_t len;
+        ssize_t len;
 };
 
 #define MAX_CH_LEN 2
@@ -97,6 +97,8 @@ struct rexpr_object {
 
 /*
         Функция парсит регулярное выражение, создает его представление в структурах
+        В случае ошибки в переменной end будет передан номер символа на котором возникла ошибка,
+        либо -1 в случае неожиданного конца строки с выражением
 */
 int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end);
 
