@@ -1016,7 +1016,9 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
         return ret;
 }
 
-int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end)
+int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end,
+                void (* get_next_str)(char * str, ssize_t * start, ssize_t * end, void * data),
+                void * data)
 {
         /*
                 Функция проверяет совпадение строки с регулярным выражением
@@ -1227,7 +1229,7 @@ ssize_t rexpr_find(const char * str, ssize_t str_len, const char * opt, ssize_t 
                 
         end = str_len - 1;
         while(start <= end){
-                switch(check_str_rexpr_object(&ro_main, str, start, &end)){
+                switch(check_str_rexpr_object(&ro_main, str, start, &end, NULL, NULL)){
                         case rexpr_check_status_SUCCESS:
                                 *end_substr = end;
                                 free_rexpr_objects(&ro_main);
