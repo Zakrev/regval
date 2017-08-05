@@ -1,4 +1,5 @@
 #include "rexpr.h"
+#include "debug.h"
 
 static char rexpr_escape_type_to_ch[rexpr_escape_type_end_ch + 1] = {'\n', '\t'};
 static char rexpr_escape_type_to_esc[rexpr_escape_type_end_ch + 1] = {'n', 't'};
@@ -50,7 +51,7 @@ static int is_two_byte_ch(const char * str, ssize_t pos, ssize_t len)
 */
 static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
-        PRINT("\tcreate_STRING: ");
+        PFUNC_START();
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -138,12 +139,14 @@ static int parse_rexpr_object_create_STRING(rexpr_object * parent, const char * 
                 PRINT("%c", ro->data.str.str[dbg_i]);
         PRINT("\n");
 #endif
+        PFUNC_END();
         return 0;
 }
 
 static int parse_rexpr_object_create_DOT(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
-        PRINT("\tcreate_DOT: %lu - %ld\n", start, *end);
+        PFUNC_START();
+        PRINT("%lu - %ld\n", start, *end);
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -172,12 +175,14 @@ static int parse_rexpr_object_create_DOT(rexpr_object * parent, const char * opt
         ro->next = parent->child;
         parent->child = ro;
                 
+        PFUNC_END();
         return 0;
 }
 
 static int parse_rexpr_object_create_STAR(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
-        PRINT("\tcreate_STAR: %lu - %ld\n", start, *end);
+        PFUNC_START();
+        PRINT("%lu - %ld\n", start, *end);
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -208,6 +213,7 @@ static int parse_rexpr_object_create_STAR(rexpr_object * parent, const char * op
                         ro->next = parent->child;
                         parent->child = ro;
                         
+                        PFUNC_END();
                         return parse_rexpr_object(ro, opt, start, end);
                 default:
                         PERR("unexpected parent type");
@@ -219,7 +225,8 @@ static int parse_rexpr_object_create_STAR(rexpr_object * parent, const char * op
 
 static int parse_rexpr_object_create_PLUS(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
-        PRINT("\tcreate_PLUS: %lu - %ld\n", start, *end);
+        PFUNC_START();
+        PRINT("%lu - %ld\n", start, *end);
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -250,6 +257,7 @@ static int parse_rexpr_object_create_PLUS(rexpr_object * parent, const char * op
                         ro->next = parent->child;
                         parent->child = ro;
                         
+                        PFUNC_END();
                         return parse_rexpr_object(ro, opt, start, end);
                 default:
                         PERR("unexpected parent type");
@@ -262,7 +270,8 @@ static int parse_rexpr_object_create_PLUS(rexpr_object * parent, const char * op
 
 static int parse_rexpr_object_create_ROUND_BRACKETS_OPEN(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
-        PRINT("\tcreate_ROUND_BRACKETS_OPEN: %lu - %ld\n", start, *end);
+        PFUNC_START();
+        PRINT("%lu - %ld\n", start, *end);
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -300,6 +309,7 @@ static int parse_rexpr_object_create_ROUND_BRACKETS_OPEN(rexpr_object * parent, 
                         ro->next = parent->child;
                         parent->child = ro;
                         
+                        PFUNC_END();
                         return 0;
                 default:
                         PERR("unexpected parent type");
@@ -311,7 +321,8 @@ static int parse_rexpr_object_create_ROUND_BRACKETS_OPEN(rexpr_object * parent, 
 
 static int parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
-        PRINT("\tcreate_ROUND_BRACKETS_CLOSE: %lu - %ld\n", start, *end);
+        PFUNC_START();
+        PRINT("%lu - %ld\n", start, *end);
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -332,18 +343,21 @@ static int parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(rexpr_object * parent,
                                         parent->data.type = rexpr_object_type_second_NOT;
                                         *end -= 2;
                                         
+                                        PFUNC_END();
                                         return 0;
                                 }
                                 if(opt[*end - 1] == rexpr_object_type_second_to_ch[rexpr_object_type_second_OR]){
                                         parent->data.type = rexpr_object_type_second_OR;
                                         *end -= 2;
                                         
+                                        PFUNC_END();
                                         return 0;
                                 }
                         }
                         parent->data.type = rexpr_object_type_ROUND_BRACKETS_CLOSE;
                         *end -= 1;
                         
+                        PFUNC_END();
                         return 0;
                 default:
                         PERR("unexpected parent type");
@@ -355,7 +369,7 @@ static int parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(rexpr_object * parent,
 
 static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(rexpr_object * parent, const char * l, ssize_t l_len, const char * r, ssize_t r_len)
 {
-        PRINT("\tcreate_SQUARE_BRACKETS_OPEN_create_ch: ");
+        PFUNC_START();
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -383,12 +397,14 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(rexpr_object
         
         PRINT("%c%c - %c%c\n", ch_range->l[0], ch_range->l[1], ch_range->r[0], ch_range->r[1]);
         
+        PFUNC_END();
         return 0;
 }
 
 static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent, const char * opt, ssize_t start, ssize_t * end)
 {
-        PRINT("\tcreate_SQUARE_BRACKETS_OPEN: %lu - %ld\n", start, *end);
+        PFUNC_START();
+        PRINT("%lu - %ld\n", start, *end);
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -444,6 +460,7 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                                         ro->next = parent->child;
                                         parent->child = ro;
                                         
+                                        PFUNC_END();
                                         return 0;
                                 }
                                 if((*end - 1) >= start){
@@ -485,6 +502,7 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                                                                         ro->next = parent->child;
                                                                         parent->child = ro;
                                                                         
+                                                                        PFUNC_END();
                                                                         return 0;
                                                                 }
                                                         }
@@ -496,6 +514,7 @@ static int parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent,
                                                         ro->next = parent->child;
                                                         parent->child = ro;
                                                         
+                                                        PFUNC_END();
                                                         return 0;
                                                 }
                                                 if(0 == is_one_byte_ch(opt[*end - 2])){
@@ -536,6 +555,7 @@ int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, s
         /*
                 Функция парсит регулярное выражение, создает его представление в структурах
         */
+        PFUNC_START();
         if(parent == NULL){
                 PERR("parent is NULL");
                 return -1;
@@ -594,12 +614,15 @@ int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, s
                                 return -1;
                 }
                 if(parent->type == rexpr_object_type_start_main){
-                        if(*end < start)
+                        if(*end < start){
+                                PFUNC_END();
                                 return 0;
+                        }
                 } else
                         break;
         }
         
+        PFUNC_END();
         return 0;
 }
 
@@ -609,6 +632,7 @@ int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, s
 static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end);
 static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
 {
+        PFUNC_START();
         if(parent == NULL){
                 PERR("parent is NULL");
                 return rexpr_check_status_UNSUCCESS;
@@ -699,11 +723,14 @@ static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, 
         }
         break_while:
         *start = start_S;
+        
+        PFUNC_END();
         return rexpr_check_status_SUCCESS;
 }
 
 static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
 {
+        PFUNC_START();
         if(parent == NULL){
                 PERR("parent is NULL");
                 return rexpr_check_status_UNSUCCESS;
@@ -796,6 +823,7 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
                 count_SUCCESS += 1;
         }
         break_while:
+        PFUNC_END();
         if(count_SUCCESS < 1){
                 return rexpr_check_status_UNSUCCESS;
         } else {
@@ -808,6 +836,7 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
 
 static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
 {
+        PFUNC_START();
         if(parent == NULL){
                 PERR("parent is NULL");
                 return rexpr_check_status_UNSUCCESS;
@@ -983,6 +1012,7 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
         if(ret == rexpr_check_status_SUCCESS)
                 *start = start_S;
         
+        PFUNC_END();
         return ret;
 }
 
@@ -996,6 +1026,7 @@ int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t star
                 В случае неудачи, *end останется в прежнем значении
                 Функция НЕ ИЩЕТ подстроку в строке, а только проверяет совпадение, начиная с первого символа
         */
+        PFUNC_START();
         if(parent == NULL){
                 PERR("parent is NULL");
                 return rexpr_check_status_UNSUCCESS;
@@ -1122,11 +1153,13 @@ int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t star
                         break;
         }
         
+        PFUNC_END();
         return ret;
 }
 
 void free_rexpr_objects(rexpr_object * parent)
 {
+        PFUNC_START();
         if(parent == NULL)
                 return;
         if(parent->child == NULL)
@@ -1137,6 +1170,7 @@ void free_rexpr_objects(rexpr_object * parent)
         
         switch(parent->type){
                 case rexpr_object_type_DOT:
+                        PFUNC_END();
                         return;
                 case rexpr_object_type_start_main:
                 case rexpr_object_type_PLUS:
@@ -1149,6 +1183,7 @@ void free_rexpr_objects(rexpr_object * parent)
                                 child = child->next;
                                 free(c_tmp);
                         }
+                        PFUNC_END();
                         return;
                 case rexpr_object_type_SQUARE_BRACKETS_OPEN:
                         range = parent->data.ch_range;
@@ -1157,11 +1192,14 @@ void free_rexpr_objects(rexpr_object * parent)
                                 range = range->next;
                                 free(r_tmp);
                         }
+                        PFUNC_END();
                         return;
                 case rexpr_object_type_STRING:
                         free(parent->data.str.str);
+                        PFUNC_END();
                         return;
         }
+        PFUNC_END();
 }
 
 ssize_t rexpr_find(const char * str, ssize_t str_len, const char * opt, ssize_t opt_len, ssize_t * end_substr)
