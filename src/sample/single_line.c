@@ -7,9 +7,48 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include "rexpr.h"
+#include "../rexpr.h"
 
 #define ALL_MATCHES 0   //1 - все подстроки
+
+ssize_t rexpr_find(char * str, ssize_t str_len, const char * opt, ssize_t opt_len, ssize_t * end_substr)
+{
+        /*
+                str     - строка
+                opt     - регулярное выражение
+                *end_substr   - последний символ найденой подстроки
+                Функция возвращает позицию первого символа найденой подстроки
+                Либо -1
+        */
+        rexpr_object ro_main;
+        ssize_t start = 0;
+        ssize_t end = opt_len - 1;
+        
+        ro_main.type = rexpr_object_type_start_main;
+        ro_main.next = NULL;
+        ro_main.child = NULL;
+        
+        if(0 != parse_rexpr_object(&ro_main, opt, start, &end)){
+                printf("Expression error on symbol %lld: %s\n", (long long)(end + 1), opt);
+                free_rexpr_objects(&ro_main);
+                return -1;
+        }
+                
+        end = str_len - 1;
+        while(start <= end){
+                switch(check_str_rexpr_object(&ro_main, str, start, &end, NULL, NULL)){
+                        case rexpr_check_status_SUCCESS:
+                                *end_substr = end;
+                                free_rexpr_objects(&ro_main);
+                                return start;
+                        default:
+                                start += 1;
+                }
+        }
+        free_rexpr_objects(&ro_main);
+        
+        return -1;
+}
 
 int main(int args, char ** arg)
 {

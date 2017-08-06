@@ -94,19 +94,6 @@ struct rexpr_object {
 };
 
 /*
-        Многостроковый поиск
-        
-        Функция выдает новую строку, в которой продолжиться поиск
-        void (* get_next_str)(char * str, ssize_t * start, ssize_t * end, void * data)
-        str     указатель на новую строку
-        start   начало данных в новой строке
-        end     конец данных в новой строке
-        data    указатель на данные(пользователя), которые нужны для работы функции
-        
-        Функцию определяет сам пользователь и передает в качестве аргумента
-*/
-
-/*
         Функция парсит регулярное выражение, создает его представление в структурах
         В случае ошибки в переменной end будет передан номер символа на котором возникла ошибка,
         либо -1 в случае неожиданного конца строки с выражением
@@ -122,23 +109,27 @@ int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, s
         В случае неудачи, *end останется в прежнем значении
         Функция НЕ ИЩЕТ подстроку в строке, а только проверяет совпадение, начиная с первого символа
 */
-int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end, 
-                        void (* get_next_str)(char *, ssize_t *, ssize_t *, void *),
+int check_str_rexpr_object(rexpr_object * parent, char * str, ssize_t start, ssize_t * end, 
+                        void (* get_next_str)(char **, ssize_t *, ssize_t *, void *),
                         void * data);
 
 
 /*Освобождает память из под структур*/
 void free_rexpr_objects(rexpr_object * parent);
 
-
 /*
-        Пример использования
-        str     - строка
-        opt     - регулярное выражение
-        *end_substr   - последний символ найденой подстроки
-        Функция возвращает позицию первого символа найденой подстроки
-        Либо -1
+        Многостроковый поиск
+        
+        Функция выдает новую строку, в которой продолжиться поиск
+        void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, void * data)
+        
+        str     указатель на новую строку
+        start   начало данных в новой строке
+        end     конец данных в новой строке
+        data    указатель на данные(пользователя), которые нужны для работы функции
+        
+        Функцию определяет сам пользователь и передает в качестве аргумента
+        В случае успеха str должна иметь указатель на новую строку, а start и end соответствовать новой строке
+        В случае ошибки или конца данных str должна содержать NULL
 */
-ssize_t rexpr_find(const char * str, ssize_t str_len, const char * opt, ssize_t opt_len, ssize_t * end_find_ch);
-
 #endif

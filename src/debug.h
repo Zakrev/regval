@@ -7,7 +7,7 @@
 #include <sys/types.h>
 
 #define DBG_ALLOC_MEM
-#define DBG_LVL 2
+#define DBG_LVL 1
 
 #if DBG_LVL >= 1
 #define PCERR(...) fprintf(stderr, "CRITICAL ERROR: %s: %d: %s: ", __FILE__, __LINE__, __FUNCTION__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); perror("ERROR")

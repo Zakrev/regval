@@ -629,8 +629,12 @@ int parse_rexpr_object(rexpr_object * parent, const char * opt, ssize_t start, s
 /*
         Функции поиска
 */
-static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end);
-static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
+static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, char * str, ssize_t * start, ssize_t * end,
+                void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, void * data),
+                void * data);
+static int check_str_rexpr_object_STAR(rexpr_object * parent, char * str, ssize_t * start, ssize_t * end,
+                void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, void * data),
+                void * data)
 {
         PFUNC_START();
         if(parent == NULL){
@@ -656,18 +660,28 @@ static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, 
         switch(ro->type){
                 case rexpr_object_type_ROUND_BRACKETS_OPEN:
                         start_S1 = start_S;
-                        if(rexpr_check_status_SUCCESS != check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end))
+                        if(rexpr_check_status_SUCCESS != check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end, get_next_str, data))
                                 goto break_while;
                         if(ro->data.type == rexpr_object_type_second_NOT && start_S1 == start_S){
                                 start_S += 1;
                         }
                         break;
                 case rexpr_object_type_SQUARE_BRACKETS_OPEN:
-                        if(start_S > end)
-                                goto break_while;
+                        if(start_S > *end){
+                                char * tmp_str = str;
+                                if(get_next_str != NULL){
+                                        get_next_str(&str, &start_S, end, data);
+                                } else
+                                        str = NULL;
+                                
+                                if(str == NULL){
+                                        str = tmp_str;
+                                        goto break_while;
+                                }
+                        }
                         ch_range = ro->data.ch_range;
                         while(ch_range != NULL){
-                                istb = is_two_byte_ch(str, start_S, end);
+                                istb = is_two_byte_ch(str, start_S, *end);
                                 if(ch_range->r[0] == '\0'){
                                         if(istb != 0){
                                                 if(0 == memcmp(ch_range->l, str + start_S, 2)){
@@ -701,8 +715,18 @@ static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, 
                 case rexpr_object_type_STRING:
                         start_S1 = start_S;
                         for(i = 0; i < ro->data.str.len; i++){
-                                if(start_S1 > end)
-                                        goto break_while;
+                                if(start_S1 > *end){
+                                        char * tmp_str = str;
+                                        if(get_next_str != NULL){
+                                                get_next_str(&str, &start_S1, end, data);
+                                        } else
+                                                str = NULL;
+                                        
+                                        if(str == NULL){
+                                                str = tmp_str;
+                                                goto break_while;
+                                        }
+                                }
                                 if(ro->data.str.str[i] != str[start_S1])
                                         goto break_while;
                                 start_S1 += 1;
@@ -710,9 +734,19 @@ static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, 
                         start_S = start_S1;
                         break;
                 case rexpr_object_type_DOT:
-                        if(start_S > end)
-                                goto break_while;
-                        if(1 == is_two_byte_ch(str, start_S, end))
+                        if(start_S > *end){
+                                char * tmp_str = str;
+                                if(get_next_str != NULL){
+                                        get_next_str(&str, &start_S, end, data);
+                                } else
+                                        str = NULL;
+                                
+                                if(str == NULL){
+                                        str = tmp_str;
+                                        goto break_while;
+                                }
+                        }
+                        if(1 == is_two_byte_ch(str, start_S, *end))
                                 start_S += 2;
                         else
                                 start_S += 1;
@@ -728,7 +762,9 @@ static int check_str_rexpr_object_STAR(rexpr_object * parent, const char * str, 
         return rexpr_check_status_SUCCESS;
 }
 
-static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
+static int check_str_rexpr_object_PLUS(rexpr_object * parent, char * str, ssize_t * start, ssize_t * end,
+                void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, void * data),
+                void * data)
 {
         PFUNC_START();
         if(parent == NULL){
@@ -755,18 +791,28 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
                 switch(ro->type){
                         case rexpr_object_type_ROUND_BRACKETS_OPEN:
                                 start_S1 = start_S;
-                                if(rexpr_check_status_SUCCESS != check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end))
+                                if(rexpr_check_status_SUCCESS != check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end, get_next_str, data))
                                         goto break_while;
                                 if(ro->data.type == rexpr_object_type_second_NOT && start_S1 == start_S){
                                         start_S += 1;
                                 }
                                 break;
                         case rexpr_object_type_SQUARE_BRACKETS_OPEN:
-                                if(start_S > end)
-                                        goto break_while;
+                                if(start_S > *end){
+                                        char * tmp_str = str;
+                                        if(get_next_str != NULL){
+                                                get_next_str(&str, &start_S, end, data);
+                                        } else
+                                                str = NULL;
+                                        
+                                        if(str == NULL){
+                                                str = tmp_str;
+                                                goto break_while;
+                                        }
+                                }
                                 ch_range = ro->data.ch_range;
                                 while(ch_range != NULL){
-                                        istb = is_two_byte_ch(str, start_S, end);
+                                        istb = is_two_byte_ch(str, start_S, *end);
                                         if(ch_range->r[0] == '\0'){
                                                 if(istb != 0){
                                                         if(0 == memcmp(ch_range->l, str + start_S, 2)){
@@ -800,8 +846,18 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
                         case rexpr_object_type_STRING:
                                 start_S1 = start_S;
                                 for(i = 0; i < ro->data.str.len; i++){
-                                        if(start_S1 > end)
-                                                goto break_while;
+                                        if(start_S1 > *end){
+                                                char * tmp_str = str;
+                                                if(get_next_str != NULL){
+                                                        get_next_str(&str, &start_S1, end, data);
+                                                } else
+                                                        str = NULL;
+                                                
+                                                if(str == NULL){
+                                                        str = tmp_str;
+                                                        goto break_while;
+                                                }
+                                        }
                                         if(ro->data.str.str[i] != str[start_S1])
                                                 goto break_while;
                                         start_S1 += 1;
@@ -809,9 +865,19 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
                                 start_S = start_S1;
                                 break;
                         case rexpr_object_type_DOT:
-                                if(start_S > end)
-                                        goto break_while;
-                                if(1 == is_two_byte_ch(str, start_S, end))
+                                if(start_S > *end){
+                                        char * tmp_str = str;
+                                        if(get_next_str != NULL){
+                                                get_next_str(&str, &start_S, end, data);
+                                        } else
+                                                str = NULL;
+                                        
+                                        if(str == NULL){
+                                                str = tmp_str;
+                                                goto break_while;
+                                        }
+                                }
+                                if(1 == is_two_byte_ch(str, start_S, *end))
                                         start_S += 2;
                                 else
                                         start_S += 1;
@@ -834,7 +900,9 @@ static int check_str_rexpr_object_PLUS(rexpr_object * parent, const char * str, 
         return rexpr_check_status_UNSUCCESS;
 }
 
-static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, const char * str, ssize_t * start, ssize_t end)
+static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, char * str, ssize_t * start, ssize_t * end,
+                void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, void * data),
+                void * data)
 {
         PFUNC_START();
         if(parent == NULL){
@@ -859,13 +927,21 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
         
         ro = parent->child;
         while(ro != NULL){
-                if(start_S > end){
-                        ret = rexpr_check_status_END_OF_LINE;
-                        goto break_while;
+                if(start_S > *end){
+                        if(get_next_str != NULL){
+                                get_next_str(&str, &start_S, end, data);
+                        } else
+                                str = NULL;
+                        
+                        if(str == NULL){
+                                ret = rexpr_check_status_END_OF_LINE;
+                                goto break_while;
+                        } else
+                                continue;
                 }
                 switch(ro->type){
                         case rexpr_object_type_STAR:
-                                ret = check_str_rexpr_object_STAR(ro, str, &start_S, end);
+                                ret = check_str_rexpr_object_STAR(ro, str, &start_S, end, get_next_str, data);
                                 if(parent->data.type == rexpr_object_type_second_NOT){
                                         if(ret == rexpr_check_status_SUCCESS){
                                                 ret = rexpr_check_status_UNSUCCESS;
@@ -879,7 +955,7 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
                                         goto break_while;
                                 break;
                         case rexpr_object_type_PLUS:
-                                ret = check_str_rexpr_object_PLUS(ro, str, &start_S, end);
+                                ret = check_str_rexpr_object_PLUS(ro, str, &start_S, end, get_next_str, data);
                                 if(parent->data.type == rexpr_object_type_second_NOT){
                                         if(ret == rexpr_check_status_SUCCESS){
                                                 ret = rexpr_check_status_UNSUCCESS;
@@ -894,7 +970,7 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
                                 break;
                         case rexpr_object_type_ROUND_BRACKETS_OPEN:
                                 start_S1 = start_S;
-                                ret = check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end);
+                                ret = check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end, get_next_str, data);
                                 if(ret == rexpr_check_status_SUCCESS && ro->data.type == rexpr_object_type_second_NOT && start_S1 == start_S){
                                         start_S += 1;
                                 }
@@ -913,7 +989,7 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
                         case rexpr_object_type_SQUARE_BRACKETS_OPEN:
                                 ch_range = ro->data.ch_range;
                                 while(ch_range != NULL){
-                                        istb = is_two_byte_ch(str, start_S, end);
+                                        istb = is_two_byte_ch(str, start_S, *end);
                                         if(ch_range->r[0] == '\0'){
                                                 if(istb != 0){
                                                         if(0 == memcmp(ch_range->l, str + start_S, 2)){
@@ -961,9 +1037,16 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
                                 break;
                         case rexpr_object_type_STRING:
                                 for(i = 0; i < ro->data.str.len; i++){
-                                        if(start_S > end){
-                                                ret = rexpr_check_status_END_OF_LINE;
-                                                goto break_while;
+                                        if(start_S > *end){
+                                                if(get_next_str != NULL){
+                                                        get_next_str(&str, &start_S, end, data);
+                                                } else
+                                                        str = NULL;
+                                                
+                                                if(str == NULL){
+                                                        ret = rexpr_check_status_END_OF_LINE;
+                                                        goto break_while;
+                                                }
                                         }
                                         if(ro->data.str.str[i] != str[start_S]){
                                                 ret = rexpr_check_status_UNSUCCESS;
@@ -986,7 +1069,7 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
                                 break;
                         case rexpr_object_type_DOT:
                                 ret = rexpr_check_status_SUCCESS;
-                                if(1 == is_two_byte_ch(str, start_S, end))
+                                if(1 == is_two_byte_ch(str, start_S, *end))
                                         start_S += 2;
                                 else
                                         start_S += 1;
@@ -1016,8 +1099,8 @@ static int check_str_rexpr_object_ROUND_BRACKETS_OPEN(rexpr_object * parent, con
         return ret;
 }
 
-int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t start, ssize_t * end,
-                void (* get_next_str)(char * str, ssize_t * start, ssize_t * end, void * data),
+int check_str_rexpr_object(rexpr_object * parent, char * str, ssize_t start, ssize_t * end,
+                void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, void * data),
                 void * data)
 {
         /*
@@ -1056,23 +1139,31 @@ int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t star
         ro = parent->child;
         while(ro != NULL){
                 if(start_S > *end){
-                        ret = rexpr_check_status_END_OF_LINE;
-                        goto break_while;
+                        if(get_next_str != NULL){
+                                get_next_str(&str, &start_S, end, data);
+                        } else
+                                str = NULL;
+                        
+                        if(str == NULL){
+                                ret = rexpr_check_status_END_OF_LINE;
+                                goto break_while;
+                        } else
+                                continue;
                 }
                 switch(ro->type){
                         case rexpr_object_type_STAR:
-                                ret = check_str_rexpr_object_STAR(ro, str, &start_S, *end);
+                                ret = check_str_rexpr_object_STAR(ro, str, &start_S, end, get_next_str, data);
                                 if(ret != rexpr_check_status_SUCCESS)
                                         goto break_while;
                                 break;
                         case rexpr_object_type_PLUS:
-                                ret = check_str_rexpr_object_PLUS(ro, str, &start_S, *end);
+                                ret = check_str_rexpr_object_PLUS(ro, str, &start_S, end, get_next_str, data);
                                 if(ret != rexpr_check_status_SUCCESS)
                                         goto break_while;
                                 break;
                         case rexpr_object_type_ROUND_BRACKETS_OPEN:
                                 start_S1 = start_S;
-                                ret = check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, *end);
+                                ret = check_str_rexpr_object_ROUND_BRACKETS_OPEN(ro, str, &start_S, end, get_next_str, data);
                                 if(ret != rexpr_check_status_SUCCESS)
                                         goto break_while;
                                 if(ro->data.type == rexpr_object_type_second_NOT && start_S1 == start_S){
@@ -1123,8 +1214,15 @@ int check_str_rexpr_object(rexpr_object * parent, const char * str, ssize_t star
                                 start_S1 = start_S;
                                 for(i = 0; i < ro->data.str.len; i++){
                                         if(start_S1 > *end){
-                                                ret = rexpr_check_status_END_OF_LINE;
-                                                goto break_while;
+                                                if(get_next_str != NULL){
+                                                        get_next_str(&str, &start_S1, end, data);
+                                                } else
+                                                        str = NULL;
+                                                
+                                                if(str == NULL){
+                                                        ret = rexpr_check_status_END_OF_LINE;
+                                                        goto break_while;
+                                                }
                                         }
                                         if(ro->data.str.str[i] != str[start_S1]){
                                                 ret = rexpr_check_status_UNSUCCESS;
@@ -1202,43 +1300,4 @@ void free_rexpr_objects(rexpr_object * parent)
                         return;
         }
         PFUNC_END();
-}
-
-ssize_t rexpr_find(const char * str, ssize_t str_len, const char * opt, ssize_t opt_len, ssize_t * end_substr)
-{
-        /*
-                str     - строка
-                opt     - регулярное выражение
-                *end_substr   - последний символ найденой подстроки
-                Функция возвращает позицию первого символа найденой подстроки
-                Либо -1
-        */
-        rexpr_object ro_main;
-        ssize_t start = 0;
-        ssize_t end = opt_len - 1;
-        
-        ro_main.type = rexpr_object_type_start_main;
-        ro_main.next = NULL;
-        ro_main.child = NULL;
-        
-        if(0 != parse_rexpr_object(&ro_main, opt, start, &end)){
-                printf("Expression error on symbol %lld: %s\n", (long long)(end + 1), opt);
-                free_rexpr_objects(&ro_main);
-                return -1;
-        }
-                
-        end = str_len - 1;
-        while(start <= end){
-                switch(check_str_rexpr_object(&ro_main, str, start, &end, NULL, NULL)){
-                        case rexpr_check_status_SUCCESS:
-                                *end_substr = end;
-                                free_rexpr_objects(&ro_main);
-                                return start;
-                        default:
-                                start += 1;
-                }
-        }
-        free_rexpr_objects(&ro_main);
-        
-        return -1;
 }
