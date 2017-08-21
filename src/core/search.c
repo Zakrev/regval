@@ -212,11 +212,13 @@ static bytes_t check_rexpr_object_type_DOT(rexpr_object * obj, rexpr_object_resu
 			if(data->start + (bytes_t)bytes > data->end){
 				continue;
 			} else {
+				//TODO: изменять data->start
 				PFUNC_END();
 				return bytes_tmp;
 			}
 		}
 	} else {
+		data->start += (bytes_t)bytes;
 		PFUNC_END();
 		return bytes;
 	}
@@ -273,6 +275,7 @@ static bytes_t check_rexpr_object_type_STAR(rexpr_object * obj, rexpr_object_res
 				ret += len;
 			}
 			break;
+		case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 		case rexpr_object_type_ROUND_BRACKETS_OPEN:
 			while(1){
 				len = check_rexpr_object_type_ROUND_BRACKETS_OPEN(obj->child, data);
@@ -359,6 +362,7 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 						}
 						ret += len;
 					break;
+					case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 					case rexpr_object_type_ROUND_BRACKETS_OPEN:
 						len = check_rexpr_object_type_ROUND_BRACKETS_OPEN(child, data);
 						if(len == -1){
@@ -418,6 +422,7 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 							return len;
 						}
 					break;
+					case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 					case rexpr_object_type_ROUND_BRACKETS_OPEN:
 						len = check_rexpr_object_type_ROUND_BRACKETS_OPEN(child, data);
 						if(len >= 0){
@@ -502,6 +507,7 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 							}
 							ret += len;
 						break;
+						case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 						case rexpr_object_type_ROUND_BRACKETS_OPEN:
 							len = check_rexpr_object_type_ROUND_BRACKETS_OPEN(child, data);
 							if(len == -1){
@@ -577,6 +583,7 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 						}
 						ret += len;
 					break;
+					case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 					case rexpr_object_type_ROUND_BRACKETS_OPEN:
 						len = check_rexpr_object_type_ROUND_BRACKETS_OPEN(child, data);
 						if(len == -1){

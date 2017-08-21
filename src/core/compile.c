@@ -149,6 +149,7 @@ static char parse_rexpr_object_create_STAR(rexpr_object * parent, rexpr_object_d
 	ro->next = NULL;
 
 	switch(parent->type){
+		case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 		case rexpr_object_type_ROUND_BRACKETS_OPEN:
 			ro->type = rexpr_object_type_STAR;
 			data->end -= 1;
@@ -187,6 +188,7 @@ static char parse_rexpr_object_create_PLUS(rexpr_object * parent, rexpr_object_d
 	ro->next = NULL;
 
 	switch(parent->type){
+		case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 		case rexpr_object_type_ROUND_BRACKETS_OPEN:
 			ro->type = rexpr_object_type_PLUS;
 			data->end -= 1;
@@ -196,7 +198,7 @@ static char parse_rexpr_object_create_PLUS(rexpr_object * parent, rexpr_object_d
 			PFUNC_END();
 			return parse_rexpr_object(ro, data);
 		default:
-			PERR("unexpected parent type");
+			PERR("unexpected parent type: %u", (unsigned int)parent->type);
 			return -1;
 	}
 	return -1;
@@ -243,6 +245,7 @@ static char parse_rexpr_object_create_ROUND_BRACKETS_OPEN(rexpr_object * parent,
 			
 			PFUNC_END();
 			return 0;
+		case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 		case rexpr_object_type_ROUND_BRACKETS_OPEN:
 			ro->type = rexpr_object_type_ROUND_BRACKETS_OPEN;
 			ro->s_type = rexpr_object_type_second_unknown_ch;
@@ -362,20 +365,20 @@ static char parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(rexpr_object * parent
 								return -1;
 							}
 							/*Копирование правил этой группы*/
-							quest->type = rexpr_object_type_ROUND_BRACKETS_OPEN;
+							quest->type = rexpr_object_type_ROUND_BRACKETS_OPEN_COPY;
 							quest->s_type = rexpr_object_type_second_ANGLE_BRACKETS_OPEN;
 							quest->child = parent->child;
 							quest->data.group_id = parent->data.group_id;
 							node->data[0] = (void *)parent;	//замена
 							/*Поиск "запросов" на копирование этой группы*/
 							for(ptree_pos = 1; ptree_pos < node->data_size; ptree_pos++){
-								quest = (rexpr_object *)(node->data + ptree_pos);
-								if(quest->s_type != rexpr_object_type_second_null){
-									PERR("'rexpr_object_type_second_null' is expected: %u", (unsigned int)quest->s_type);
+								quest = (rexpr_object *)(node->data[ptree_pos]);
+								if(quest->type != rexpr_object_type_null){
+									PERR("'rexpr_object_type_null' is expected: %u", (unsigned int)quest->type);
 									return -1;
 								}
 								/*Копирование правил этой группы*/
-								quest->type = rexpr_object_type_ROUND_BRACKETS_OPEN;
+								quest->type = rexpr_object_type_ROUND_BRACKETS_OPEN_COPY;
 								quest->s_type = rexpr_object_type_second_ANGLE_BRACKETS_OPEN;
 								quest->child = parent->child;
 								quest->data.group_id = parent->data.group_id;
@@ -386,6 +389,7 @@ static char parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(rexpr_object * parent
 								}
 							}
 						}
+						data->end = tmp_end - 1;
 						break;
 					default:
 						parent->s_type = rexpr_object_type_second_ROUND_BRACKETS_CLOSE;
@@ -479,6 +483,7 @@ static char parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent
 	switch(parent->type){
 		case rexpr_object_type_STAR:
 		case rexpr_object_type_PLUS:
+		case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 		case rexpr_object_type_ROUND_BRACKETS_OPEN:
 			ro->type = rexpr_object_type_SQUARE_BRACKETS_OPEN;
 			if(data->brackets_map_end == 0){
@@ -592,6 +597,7 @@ static char parse_rexpr_object_type_ANGLE_BRACKETS_OPEN(rexpr_object * parent, r
 	switch(parent->type){
 		case rexpr_object_type_STAR:
 		case rexpr_object_type_PLUS:
+		case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
 		case rexpr_object_type_ROUND_BRACKETS_OPEN:
 			ro->type = rexpr_object_type_null;
 			ro->s_type = rexpr_object_type_second_null;
@@ -614,7 +620,7 @@ static char parse_rexpr_object_type_ANGLE_BRACKETS_OPEN(rexpr_object * parent, r
 			quest = (rexpr_object *)get_data_ptree(data->groups, data->str + (tmp_end + 1), data->end - (tmp_end + 1), 0);
 			if(quest != NULL){
 				if(quest->type == rexpr_object_type_ROUND_BRACKETS_OPEN){
-					ro->type = quest->type;
+					ro->type = rexpr_object_type_ROUND_BRACKETS_OPEN_COPY;
 					ro->s_type = rexpr_object_type_second_ANGLE_BRACKETS_OPEN;
 					ro->data.group_id = quest->data.group_id;
 					ro->child = quest->child;
@@ -664,47 +670,85 @@ static char parse_rexpr_object(rexpr_object * parent, rexpr_object_data * data)
 		return -1;
 	}
 
-	while(data->end >= data->start){
-		PRINT("parse_rexpr_object: parent: %c\n", (char)rexpr_object_type_to_ch[parent->type]);
-		switch(rexpr_object_type_to_int(data->str[data->end])){
-			case rexpr_object_type_DOT:
-				if(0 != parse_rexpr_object_create_DOT(parent, data))
+	PRINT("parse_rexpr_object: parent: %c\n", (char)rexpr_object_type_to_ch[parent->type]);
+	switch(parent->type){
+		case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
+		case rexpr_object_type_ROUND_BRACKETS_OPEN:
+			while(data->end >= data->start){
+				switch(rexpr_object_type_to_int(data->str[data->end])){
+					case rexpr_object_type_DOT:
+						if(0 != parse_rexpr_object_create_DOT(parent, data))
+								return -1;
+						break;
+					case rexpr_object_type_STAR:
+						if(0 != parse_rexpr_object_create_STAR(parent, data))
+								return -1;
+						break;
+					case rexpr_object_type_PLUS:
+						if(0 != parse_rexpr_object_create_PLUS(parent, data))
+								return -1;
+						break;
+					case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
+					case rexpr_object_type_ROUND_BRACKETS_OPEN:
+						if(0 != parse_rexpr_object_create_ROUND_BRACKETS_OPEN(parent, data))
+								return -1;
+						break;
+					case rexpr_object_type_ROUND_BRACKETS_CLOSE:
+						if(0 != parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(parent, data))
+								return -1;
+						else
+							return 0;
+						break;
+					case rexpr_object_type_SQUARE_BRACKETS_OPEN:
+						if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(parent, data))
+								return -1;
+						break;
+					case rexpr_object_type_ANGLE_BRACKETS_OPEN:
+						if(0 != parse_rexpr_object_type_ANGLE_BRACKETS_OPEN(parent, data))
+								return -1;
+						break;
+					case rexpr_object_type_STRING:
+						if(0 != parse_rexpr_object_create_STRING(parent, data))
+							return -1;
+						break;
+					default:
+						PERR("unexpected 'rexpr_object_type': %u", (unsigned int)rexpr_object_type_to_int(data->str[data->end]));
 						return -1;
-				break;
-			case rexpr_object_type_STAR:
-				if(0 != parse_rexpr_object_create_STAR(parent, data))
+				}
+			}
+			break; //case rexpr_object_type_ROUND_BRACKETS_OPEN
+		case rexpr_object_type_PLUS:
+		case rexpr_object_type_STAR:
+			switch(rexpr_object_type_to_int(data->str[data->end])){
+				case rexpr_object_type_DOT:
+					if(0 != parse_rexpr_object_create_DOT(parent, data))
+							return -1;
+					break;
+				case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
+				case rexpr_object_type_ROUND_BRACKETS_OPEN:
+					if(0 != parse_rexpr_object_create_ROUND_BRACKETS_OPEN(parent, data))
+							return -1;
+					break;
+				case rexpr_object_type_SQUARE_BRACKETS_OPEN:
+					if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(parent, data))
+							return -1;
+					break;
+				case rexpr_object_type_ANGLE_BRACKETS_OPEN:
+					if(0 != parse_rexpr_object_type_ANGLE_BRACKETS_OPEN(parent, data))
+							return -1;
+					break;
+				case rexpr_object_type_STRING:
+					if(0 != parse_rexpr_object_create_STRING(parent, data))
 						return -1;
-				break;
-			case rexpr_object_type_PLUS:
-				if(0 != parse_rexpr_object_create_PLUS(parent, data))
-						return -1;
-				break;
-			case rexpr_object_type_ROUND_BRACKETS_OPEN:
-				if(0 != parse_rexpr_object_create_ROUND_BRACKETS_OPEN(parent, data))
-						return -1;
-				break;
-			case rexpr_object_type_ROUND_BRACKETS_CLOSE:
-				if(0 != parse_rexpr_object_create_ROUND_BRACKETS_CLOSE(parent, data))
-						return -1;
-				else
-					return 0;
-				break;
-			case rexpr_object_type_SQUARE_BRACKETS_OPEN:
-				if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(parent, data))
-						return -1;
-				break;
-			case rexpr_object_type_ANGLE_BRACKETS_OPEN:
-				if(0 != parse_rexpr_object_type_ANGLE_BRACKETS_OPEN(parent, data))
-						return -1;
-				break;
-			case rexpr_object_type_STRING:
-				if(0 != parse_rexpr_object_create_STRING(parent, data))
+					break;
+				default:
+					PERR("unexpected 'rexpr_object_type': %u", (unsigned int)rexpr_object_type_to_int(data->str[data->end]));
 					return -1;
-				break;
-			default:
-				PERR("unexpected 'rexpr_object_type'");
-				return -1;
-		}
+			}
+			break;
+		default:
+			PERR("unexpected parent type: %u", (unsigned int)parent->type);
+			return -1;	
 	}
 	PFUNC_END();
 	return 0;
@@ -785,7 +829,6 @@ static char init_rexpr_data(rexpr_object_data * data, uchar_t * str, bytes_t sta
 		}
 		data->brackets_map_end -= 1; //перевод из размера в позицию
 	}
-
 	PFUNC_END();
 	return 0;
 }
@@ -877,11 +920,11 @@ void free_rexpr(rexpr_object * parent)
 			PFUNC_END();
 			return;
 			break;
+		case rexpr_object_type_ROUND_BRACKETS_OPEN_COPY:
+			PFUNC_END();
+			return;
+			break;
 		case rexpr_object_type_ROUND_BRACKETS_OPEN:
-			if(parent->s_type == rexpr_object_type_null){
-				PFUNC_END();
-				return;
-			}
 			child = parent->child;
 			while(child != NULL){
 				free_rexpr(child);

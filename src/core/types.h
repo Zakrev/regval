@@ -37,7 +37,7 @@
 */
 
 enum rexpr_object_type {
-	/*Типы объектов*/
+	/*Типы основных объектов*/
 	rexpr_object_type_DOT,
 	rexpr_object_type_STAR,
 	rexpr_object_type_PLUS,
@@ -47,18 +47,21 @@ enum rexpr_object_type {
 	rexpr_object_type_SQUARE_BRACKETS_CLOSE,
 	rexpr_object_type_ANGLE_BRACKETS_OPEN,
 	rexpr_object_type_ANGLE_BRACKETS_CLOSE,
+	
+	/*Без символа*/
 	rexpr_object_type_STRING,
 	rexpr_object_type_CH_RANGE,
+	rexpr_object_type_null,
+	rexpr_object_type_ROUND_BRACKETS_OPEN_COPY,
 	
 	/*Параметры*/
 	rexpr_object_type_start_ch = rexpr_object_type_DOT,
 	rexpr_object_type_end_ch = rexpr_object_type_ANGLE_BRACKETS_CLOSE,
-	rexpr_object_type_null,
 	rexpr_object_type_unknown_ch = rexpr_object_type_STRING
 };
 
 enum rexpr_object_type_second {
-	/*Типы дополнительных объектов*/
+	/*Типы дополнительных объектов*/	
 	rexpr_object_type_second_ESCAPE,
 	rexpr_object_type_second_NOT,
 	rexpr_object_type_second_OR,
@@ -67,14 +70,14 @@ enum rexpr_object_type_second {
 	rexpr_object_type_second_ANGLE_BRACKETS_OPEN,
 	rexpr_object_type_second_ANGLE_BRACKETS_CLOSE,
 	
+	/*Без символа*/
+	rexpr_object_type_second_null,
+	rexpr_object_type_second_unknown_ch,
+	rexpr_object_type_second_ROUND_BRACKETS_CLOSE,
+	
 	/*Параметры*/
 	rexpr_object_type_second_start_ch = rexpr_object_type_second_ESCAPE,
 	rexpr_object_type_second_end_ch = rexpr_object_type_second_ANGLE_BRACKETS_CLOSE,
-	rexpr_object_type_second_null,
-	rexpr_object_type_second_unknown_ch,
-	
-	/*Прочее*/
-	rexpr_object_type_second_ROUND_BRACKETS_CLOSE
 };
 
 enum rexpr_escape_type {

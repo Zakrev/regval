@@ -7,7 +7,10 @@ sample_multi:	clean
 sample_singl:	clean
 	gcc -Wall -o bin/single_line  src/sample/single_line.c src/rexpr.c
 
-PHONY: all clean sample_singl sample_multi
-	
+PHONY: all clean sample_singl sample_multi configure
+
+configure:
+	mkdir -p bin
+
 clean:
 	rm -R -f bin/*
