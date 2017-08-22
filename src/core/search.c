@@ -143,20 +143,23 @@ static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_r
 	if(data->start + obj->data.str.len > data->end){
 		/*Данные разбиты на строки*/
 		pos = 0;
-		/* FIXME: тут какая-то фигня, нужно перепроверить
 		while((obj->data.str.len - pos) != 0){
-			len_part = (data->start + (obj->data.str.len - pos)) - data->end;
-			if(0 != memcmp(obj->data.str.str + pos, data->str + data->start, len_part)){
-				_load_data(data, &data_tmp);
-				PFUNC_END();
-				return 0;
+			len_part = obj->data.str.len - ((data->start + (obj->data.str.len - pos)) - data->end) + 1;
+			if(len_part > 0){
+				if(0 != memcmp(obj->data.str.str + pos, data->str + data->start, len_part)){
+					_load_data(data, &data_tmp);
+					PFUNC_END();
+					return 0;
+				}
+				pos += len_part;
 			}
 			if(0 != _get_next_str(data)){
 				_load_data(data, &data_tmp);
 				PINF("unexpected EOL");
 				return 0;
 			}
-			pos += len_part;
+			if((obj->data.str.len - pos) == 0)
+				break;
 			if(data->start + (obj->data.str.len - pos) > data->end){
 				continue;
 			} else {
@@ -167,8 +170,8 @@ static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_r
 				}
 			}
 		}
-		data->start += obj->data.str.len;*/
-		return 0;
+		data->start += obj->data.str.len - pos;
+		return obj->data.str.len;
 	} else {
 		if(0 == memcmp(obj->data.str.str, data->str + data->start, obj->data.str.len)){
 			data->start += obj->data.str.len;
@@ -597,10 +600,10 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 				child = child->next;
 			}
 			if(obj->s_type == rexpr_object_type_second_ANGLE_BRACKETS_OPEN && data->group_result != NULL){
-				rg_idx = data->group_result_size - obj->data.group_id;
-				if(data->group_result_size <= rg_idx || rg_idx <= 0){
+				rg_idx = data->group_result_size - obj->data.group_id + 1;
+				if(data->group_result_size < rg_idx || rg_idx <= 0){
 					_load_data(data, &data_tmp);
-					PERR("unexpected index: %u / [1,%u]", rg_idx, data->group_result_size - 1);
+					PERR("unexpected index: %u / [1,%u]", rg_idx, data->group_result_size);
 					return -1;
 				}
 				rg = malloc(sizeof(rexpr_object_result_group));
@@ -648,7 +651,7 @@ long long check_str_rexpr_object(rexpr_object * pattern, char * str, bytes_t str
 	} else {
 		clear_rexpr_object_result(result);
 		if(pattern->data.group_id > 0){
-			result->group_result = malloc(sizeof(rexpr_object_result_group *) * pattern->data.group_id);
+			result->group_result = malloc(sizeof(rexpr_object_result_group *) * (pattern->data.group_id + 1));
 			if(result->group_result == NULL){
 				PERR("ptr is NULL");
 				return -1;
