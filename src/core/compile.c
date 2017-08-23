@@ -1,4 +1,4 @@
-#define DBG_LVL 1
+#define DBG_LVL 2
 #include "../debug.h"
 
 #include "../encoding/utf_8.h"
@@ -85,9 +85,9 @@ static char parse_rexpr_object_create_STRING(rexpr_object * parent, rexpr_object
 	ro->next = parent->child;
 	parent->child = ro;
 #if DBG_LVL >= 2
-	PRINT("%lld / %lld - %lld / ", (long long)data->start, (long long)data->end, (long long)ro->data.str.len);
+	PRINT("%lld / %lld: %lld '", (long long)data->start, (long long)data->end, (long long)ro->data.str.len);
 	PRINT2(ro->data.str.str, ro->data.str.len);
-	PRINT("\n");
+	PRINT("'\n");
 #endif
 	PFUNC_END();
 	return 0;
@@ -446,11 +446,11 @@ static char parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(rexpr_objec
 		parent->data.ch_range = ch_range;
 	}
 
-	PRINT("new range: ");
+	PRINT("new range: '");
 	PRINT2((char *)ch_range->l, ch_range->bytes);
-	PRINT(" / ");
+	PRINT("' ... '");
 	PRINT2((char *)ch_range->r, ch_range->bytes);
-	PRINT("\n");
+	PRINT("'\n");
 
 	PFUNC_END();
 	return 0;
@@ -510,6 +510,7 @@ static char parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent
 								data->end -= 1;
 								ro->next = parent->child;
 								parent->child = ro;
+								data->brackets_map_end -= 1;
 
 								PFUNC_END();
 								return 0;
@@ -555,6 +556,7 @@ static char parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent
 						if(0 != parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(ro, rexpr_escape_type_to_ch + esc, NULL, 1))
 							return -1;
 						data->end -= 2;
+						continue;
 					}
 				}
 				create_one_char:
@@ -800,6 +802,7 @@ static char init_rexpr_data(rexpr_object_data * data, uchar_t * str, bytes_t sta
 		PCERR("ptr is NULL");
 		return -1;
 	}
+	PRINT("square brake map: ");
 	while(start <= end){
 		uchar_t bytes = get_utf8_letter_size(str[start]);
 		if(bytes == 1)
@@ -807,10 +810,12 @@ static char init_rexpr_data(rexpr_object_data * data, uchar_t * str, bytes_t sta
 				case rexpr_object_type_SQUARE_BRACKETS_OPEN:
 					data->brackets_map[data->brackets_map_end] = rexpr_object_type_SQUARE_BRACKETS_OPEN;
 					data->brackets_map_end += 1;
+					PRINT(" ] ");
 					break;
 				case rexpr_object_type_SQUARE_BRACKETS_CLOSE:
 					data->brackets_map[data->brackets_map_end] = rexpr_object_type_SQUARE_BRACKETS_CLOSE;
 					data->brackets_map_end += 1;
+					PRINT(" [ ");
 					break;
 			}
 		if(bytes != 0)
@@ -818,6 +823,7 @@ static char init_rexpr_data(rexpr_object_data * data, uchar_t * str, bytes_t sta
 		else
 			start += 1;
 	}
+	PRINT("\n");
 	if(data->brackets_map_end == 0){
 		free(data->brackets_map);
 		data->brackets_map = NULL;

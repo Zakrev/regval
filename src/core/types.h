@@ -14,9 +14,9 @@
 	()		группа правил
 	[]		один любой символ из набора, внутри скобок все интерпретируется как символы, экранирований не нужно
 	<>		обращение к именованной группе, обращатся к группе можно в любом месте (т.е. до и после именования группы '<name>()')
-			FIXME: если вообще нет именованной группы, но есть обращения:
-				1) если не требуется получения данных от групп, то все обращения будут пропучены во время проверки
-				2) если требуется (т.е. создан массив с группами), то будет ошибка во время проверки либо прога упадет
+			Если вообще нет именованной группы, но есть обращения:
+				1) если не требуется получения данных от групп, то все "пустые" обращения будут пропущены во время проверки
+				2) если требуется (т.е. создан массив с группами), то все "пустые" обращения будут пропущены во время проверки
 	TODO
 
 	Дополнительные символы:
@@ -36,6 +36,7 @@
 	символ		описание
 	n		перевод строки
 	t		табуляция
+	0		нулевой символ
 	TODO
 */
 
@@ -87,10 +88,11 @@ enum rexpr_escape_type {
 	/*Различные escape-символы для комад вида '\n', используется только для SQUARE_BRACKETS '[a-z \n\t]'*/
 	rexpr_escape_type_NEWLINE,
 	rexpr_escape_type_TAB,
+	rexpr_escape_type_ZERO,
 	
 	/*Параметры*/
 	rexpr_escape_type_start_ch = rexpr_escape_type_NEWLINE,
-	rexpr_escape_type_end_ch = rexpr_escape_type_TAB,
+	rexpr_escape_type_end_ch = rexpr_escape_type_ZERO,
 	rexpr_escape_type_unknown_ch
 };
 
@@ -120,8 +122,8 @@ static uchar_t rexpr_object_type_second_to_int(uchar_t ch)
 }
 
 /*Функции по работе с esc-символами*/
-static uchar_t rexpr_escape_type_to_ch[rexpr_escape_type_end_ch + 1] = {'\n', '\t'};
-static uchar_t rexpr_escape_type_to_esc[rexpr_escape_type_end_ch + 1] = {'n', 't'};
+static uchar_t rexpr_escape_type_to_ch[rexpr_escape_type_end_ch + 1] = {'\n', '\t', '\0'};
+static uchar_t rexpr_escape_type_to_esc[rexpr_escape_type_end_ch + 1] = {'n', 't', '0'};
 static uchar_t rexpr_escape_type_to_int(uchar_t ch)
 {
 	unsigned int i;

@@ -1,4 +1,4 @@
-#define DBG_LVL 1
+#define DBG_LVL 2
 #include "../debug.h"
 
 #include "../encoding/utf_8.h"
@@ -34,15 +34,16 @@ static char _get_next_str(rexpr_object_result * data)
 	PFUNC_START();
 	if(data->get_next_str == NULL)
 		return -1;
-	PRINT("old: ");
+	PRINT("old: '");
 	PRINT2(data->str, data->end + 1);
+	PRINT("'\n");
 	uchar_t * old_str = data->str;
 	data->get_next_str((char **)&data->str, &data->start, &data->end, &data->line, data->get_str_data);
 	if( (void *)data->str == (void *)old_str)
 		return -1;
-	PRINT("\nnew: ");
+	PRINT("new: '");
 	PRINT2(data->str, data->end + 1);
-	PRINT("\n");
+	PRINT("'\n");
 	PFUNC_END();
 	return 0;
 }
@@ -91,68 +92,97 @@ static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, 
 		return 0;
 	}
 	rexpr_object_result data_tmp;
+	rexpr_object_ch_range * range;
 	unsigned int bytes;
-	unsigned int bytes_part;
-	unsigned int bytes_tmp;
-	unsigned int pos;
+	bytes_t offset;
 	uchar_t ch[MAX_CH_LEN];
-	
+
 	_save_data(&data_tmp, data);
-	
+
+	if(0 != _get_next_str_loop(data)){
+		_load_data(data, &data_tmp);
+		PINF("unexpected EOL");
+		return 0;
+	}
+
 	bytes = get_utf8_letter_size(data->str[data->start]);
 	if(bytes == 0){
 		bytes = 1;
 	}
-	bytes_tmp = bytes;
-	if(data->start + (bytes_t)bytes > data->end){
-		/*Данные разбиты на строки*/
-		pos = 0;
-		while(1){
-			bytes_part = (unsigned int)((data->start + (bytes_t)bytes) - data->end);
-			bytes = bytes - bytes_part;
-			memcpy(ch + pos, data->str + data->start, bytes_part);
-			pos += bytes_part;
+	range = obj->data.ch_range;
+	while(range != NULL){
+		if(range->bytes == bytes){
+			break;
+		}
+		range = range->next;
+	}
+	if(range == NULL)
+		return 0;
+
+	offset = 0;
+	while(1){
+		if(data->start == data->end){
+			memcpy(ch + offset, data->str + data->start, 1);
+			bytes -= 1;
+			if(bytes <= 0){
+				data->start += 1;
+				break;
+			} else {
+				if(0 != _get_next_str(data)){
+					_load_data(data, &data_tmp);
+					PINF("unexpected EOL");
+					return 0;
+				}
+				offset += 1;
+				continue;
+			}
+		}
+		if((data->start + bytes - 1) > data->end){
+			bytes_t tmp = data->end - data->start + 1;
+			memcpy(ch + offset, data->str + data->start, tmp);
+			bytes -= tmp;
+			offset += tmp;
 			if(0 != _get_next_str(data)){
 				_load_data(data, &data_tmp);
 				PINF("unexpected EOL");
 				return 0;
 			}
-			if(data->start + (bytes_t)bytes > data->end){
-				continue;
-			} else {
-				memcpy(ch + pos, data->str + data->start, bytes);
-				data->start += bytes;
-				break;
-			}
-		}
-	} else {
-		memcpy(ch, data->str + data->start, bytes);
-		data->start += bytes;
-	}
-	bytes = bytes_tmp;
-	rexpr_object_ch_range * range = obj->data.ch_range;
-	while(range != NULL){
-		if(range->bytes != bytes){
-			range = range->next;
 			continue;
 		}
-		if(range->r != 0){
-			if(0 >= memcmp(range->l, (void *)ch, bytes)){
-				if(0 >= memcmp(range->r, (void *)ch, bytes)){
-					PFUNC_END();
-					return (bytes_t)bytes;
-				}
+		memcpy(ch + offset, data->str + data->start, bytes);
+		data->start += bytes;
+		break;
+	}
+
+	PRINT("compare: '");
+	PRINT2(ch, range->bytes);
+	PRINT("'\n");
+	while(range != NULL){
+		if(range->r[0] == 0){
+			PRINT("range: '");
+			PRINT2(range->l, range->bytes);
+			PRINT("'\n");
+			if(0 == memcmp(range->l, ch, range->bytes)){
+				PFUNC_END();
+				return range->bytes;
 			}
 		} else {
-			if(0 == memcmp(range->l, (void *)ch, bytes)){
-				PFUNC_END();
-				return (bytes_t)bytes;
+			PRINT("range: '");
+			PRINT2(range->l, range->bytes);
+			PRINT("' ... '");
+			PRINT2(range->r, range->bytes);
+			PRINT("'\n");
+			if(0 >= memcmp(range->l, ch, range->bytes)){
+					if(0 <= memcmp(range->r, ch, range->bytes)){
+							PFUNC_END();
+							return range->bytes;
+					}
 			}
 		}
 		range = range->next;
 	}
+	
 	_load_data(data, &data_tmp);
-	PFUNC_END();
 	return 0;
 }
 
@@ -170,8 +200,9 @@ static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_r
 		PERR("ptr is NULL");
 		return 0;
 	}
+	PRINT("string: '");
 	PRINT2(obj->data.str.str, obj->data.str.len);
-	PRINT("\n");
+	PRINT("'\n");
 	if(obj->data.str.len <= 0)
 		return 0;
 
@@ -215,8 +246,8 @@ static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_r
 				continue;
 			}
 		}
-		if((data->start + len) > data->end){
-			bytes_t tmp = (data->start + len) - data->end;
+		if((data->start + len - 1) > data->end){
+			bytes_t tmp = data->end - data->start + 1;
 			PRINT("(data->start + len) > data->end: '");
 			PRINT2(obj->data.str.str + offset, tmp);
 			PRINT("' '");
@@ -295,8 +326,8 @@ static bytes_t check_rexpr_object_type_DOT(rexpr_object * obj, rexpr_object_resu
 				continue;
 			}
 		}
-		if((data->start + bytes) > data->end){
-			bytes -= (data->start + bytes) - data->end;
+		if((data->start + bytes - 1) > data->end){
+			bytes -= data->end - data->start + 1;
 			if(0 != _get_next_str(data)){
 				_load_data(data, &data_tmp);
 				PINF("unexpected EOL");

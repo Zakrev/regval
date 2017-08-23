@@ -45,10 +45,17 @@ int main()
 	//char * pattern = "(.^(o))*";
 	//char * pattern = "H|((<e>ll<o>)<e>(e)<o>(o)(<o>r)(<o>{1,3}(.)))*";
 	//char * pattern = "H|((<e>ll<o>)<e>(e)<o>(o)(<o>r)({0,1}(<o>){1,10}(^(!).)))*";
-	char * pattern = "<e><e><e>Hello";	//проверить в multiline
+	//char * pattern = "<e><e><e><h>";	//проверить в multiline
+	//char * pattern = "[A-Za-z/n/t/0]*";
 
+	//char * pattern = "При";
+	//char * pattern = "Пр{1,2}(и)в";
+	//char * pattern = "{1,3}(|((П<gr1>(р)ивет ми<gr1>!)([A-Za-z ]*!)))";
+	//char * pattern = "(.^(o))*";
+	//char * pattern = "[А-Яа-яA-Za-z/n/t/0 !]*";
+	char * pattern = "<1>(<2>([А-Яа-я]*)([ !]*)<3>([A-Za-z]*))<1><1><1>";
 
-	char * strs[] = {"Hel", "l", "o Worl", "d", "!"};
+	char * strs[] = {"При", "вет ", "мир! ", "Hel", "l", "o Worl", "d", "!"};
 	unsigned int strs_size = sizeof(strs) / sizeof(char *);
 	
 	ret = (int)compile_rexpr(&expr, (uchar_t *)pattern, strlen(pattern));
@@ -56,7 +63,7 @@ int main()
 		write(1, pattern, ret + 1);
 	}
 	printf("\nCompile result: %d/%d\n", ret, (int)strlen(pattern) - 1);
-	
+
 	gns_data.lines = strs;
 	gns_data.size = strs_size;
 	init_rexpr_object_result(&res, _get_next_str, &gns_data);
@@ -75,6 +82,6 @@ int main()
 		printf("\nResult: %lld\n", end);
 	}
 	free_rexpr(&expr);
-	
+
 	return 0;
 }
