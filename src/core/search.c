@@ -1,4 +1,4 @@
-#define DBG_LVL 2
+#define DBG_LVL 1
 #include "../debug.h"
 
 #include "../encoding/utf_8.h"
@@ -31,12 +31,44 @@ static bytes_t check_ (rexpr_object * obj, rexpr_object_result * data)
 */
 static char _get_next_str(rexpr_object_result * data)
 {
+	PFUNC_START();
 	if(data->get_next_str == NULL)
 		return -1;
+	PRINT("old: ");
+	PRINT2(data->str, data->end + 1);
 	uchar_t * old_str = data->str;
 	data->get_next_str((char **)&data->str, &data->start, &data->end, &data->line, data->get_str_data);
 	if( (void *)data->str == (void *)old_str)
 		return -1;
+	PRINT("\nnew: ");
+	PRINT2(data->str, data->end + 1);
+	PRINT("\n");
+	PFUNC_END();
+	return 0;
+}
+
+static char _get_next_str_loop(rexpr_object_result * data)
+{
+	/*
+		Переходит на новую строку пока start > end
+		Синхронизирует start со строкой
+	*/
+	PFUNC_START();
+	if(data->start <= data->end){
+		PFUNC_END();
+		return 0;
+	}
+	bytes_t tmp;
+	
+	while(1){
+		tmp = (data->start - data->end) - 1;
+		if(tmp < 0)
+			break;
+		if(0 != _get_next_str(data))
+			return -1;
+		data->start += tmp;
+	}
+	PFUNC_END();
 	return 0;
 }
 
@@ -126,6 +158,12 @@ static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, 
 
 static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_result * data)
 {
+	/*
+		Сравнивает байты с позиции data->start (включительно)
+		Возвращает количество проверенных байт
+
+		data->start будет сдвинут на возвращаемое значение (получится указатель на следующий байт после последнего совпавшего)
+	*/
 	PFUNC_START();
 	PRINT("%lld / %lld\n", (long long)data->start, (long long)data->end);
 	if(obj == NULL){
@@ -134,53 +172,85 @@ static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_r
 	}
 	PRINT2(obj->data.str.str, obj->data.str.len);
 	PRINT("\n");
+	if(obj->data.str.len <= 0)
+		return 0;
+
 	rexpr_object_result data_tmp;
-	bytes_t len_part;
-	bytes_t pos;
+	bytes_t len;
+	bytes_t offset;
 	
 	_save_data(&data_tmp, data);
 	
-	if(data->start + obj->data.str.len > data->end){
-		/*Данные разбиты на строки*/
-		pos = 0;
-		while((obj->data.str.len - pos) != 0){
-			len_part = obj->data.str.len - ((data->start + (obj->data.str.len - pos)) - data->end) + 1;
-			if(len_part > 0){
-				if(0 != memcmp(obj->data.str.str + pos, data->str + data->start, len_part)){
+	if(0 != _get_next_str_loop(data)){
+		_load_data(data, &data_tmp);
+		PINF("unexpected EOL");
+		return 0;
+	}
+
+	len = obj->data.str.len;
+	offset = 0;
+	while(1){
+		if(data->start == data->end){
+			PRINT("data->start == data->end: '");
+			PRINT2(obj->data.str.str + offset, 1);
+			PRINT("' '");
+			PRINT2(data->str + data->start, 1);
+			PRINT("'\n");
+			if(0 != memcmp(obj->data.str.str + offset, data->str + data->start, 1)){
+				_load_data(data, &data_tmp);
+				PFUNC_END();
+				return 0;
+			}
+			len -= 1;
+			if(len <= 0){
+				data->start += 1;
+				return obj->data.str.len;
+			} else {
+				if(0 != _get_next_str(data)){
 					_load_data(data, &data_tmp);
-					PFUNC_END();
+					PINF("unexpected EOL");
 					return 0;
 				}
-				pos += len_part;
+				offset += 1;
+				continue;
 			}
+		}
+		if((data->start + len) > data->end){
+			bytes_t tmp = (data->start + len) - data->end;
+			PRINT("(data->start + len) > data->end: '");
+			PRINT2(obj->data.str.str + offset, tmp);
+			PRINT("' '");
+			PRINT2(data->str + data->start, tmp);
+			PRINT("'\n");
+			if(0 != memcmp(obj->data.str.str + offset, data->str + data->start, tmp)){
+				_load_data(data, &data_tmp);
+				PFUNC_END();
+				return 0;
+			}
+			len -= tmp;
+			offset += tmp;
 			if(0 != _get_next_str(data)){
 				_load_data(data, &data_tmp);
 				PINF("unexpected EOL");
 				return 0;
 			}
-			if((obj->data.str.len - pos) == 0)
-				break;
-			if(data->start + (obj->data.str.len - pos) > data->end){
-				continue;
-			} else {
-				if(0 != memcmp(obj->data.str.str + pos, data->str + data->start, (obj->data.str.len - pos))){
-					_load_data(data, &data_tmp);
-					PFUNC_END();
-					return 0;
-				}
-			}
+			continue;
 		}
-		data->start += obj->data.str.len - pos;
-		return obj->data.str.len;
-	} else {
-		if(0 == memcmp(obj->data.str.str, data->str + data->start, obj->data.str.len)){
-			data->start += obj->data.str.len;
+		PRINT("(data->start + len) <= data->end: '");
+		PRINT2(obj->data.str.str + offset, len);
+		PRINT("' '");
+		PRINT2(data->str + data->start, len);
+		PRINT("'\n");
+		if(0 != memcmp(obj->data.str.str + offset, data->str + data->start, len)){
+			_load_data(data, &data_tmp);
 			PFUNC_END();
-			return obj->data.str.len;
+			return 0;
 		}
+		data->start += len;
+		PFUNC_END();
+		return obj->data.str.len;
 	}
 	_load_data(data, &data_tmp);
-	PFUNC_END();
 	return 0;
 }
 
@@ -195,40 +265,53 @@ static bytes_t check_rexpr_object_type_DOT(rexpr_object * obj, rexpr_object_resu
 	rexpr_object_result data_tmp;
 	unsigned int bytes;
 	unsigned int bytes_tmp;
-	
+
 	_save_data(&data_tmp, data);
-	
+
+	if(0 != _get_next_str_loop(data)){
+		_load_data(data, &data_tmp);
+		PINF("unexpected EOL");
+		return 0;
+	}
+
 	bytes = get_utf8_letter_size(data->str[data->start]);
 	if(bytes == 0){
 		bytes = 1;
 	}
-	if(data->start + (bytes_t)bytes > data->end){
-		/*Данные разбиты на строки*/
-		bytes_tmp = bytes;
-		while(1){
-			bytes = bytes - (unsigned int)((data->start + (bytes_t)bytes) - data->end);
+	bytes_tmp = bytes;
+	while(1){
+		if(data->start == data->end){
+			bytes -= 1;
+			if(bytes <= 0){
+				data->start += 1;
+				PFUNC_END();
+				return bytes_tmp;
+			} else {
+				if(0 != _get_next_str(data)){
+					_load_data(data, &data_tmp);
+					PINF("unexpected EOL");
+					return 0;
+				}
+				continue;
+			}
+		}
+		if((data->start + bytes) > data->end){
+			bytes -= (data->start + bytes) - data->end;
 			if(0 != _get_next_str(data)){
 				_load_data(data, &data_tmp);
 				PINF("unexpected EOL");
 				return 0;
 			}
-			if(data->start + (bytes_t)bytes > data->end){
-				continue;
-			} else {
-				//TODO: изменять data->start
-				PFUNC_END();
-				return bytes_tmp;
-			}
+			continue;
 		}
-	} else {
-		data->start += (bytes_t)bytes;
+		data->start += bytes;
 		PFUNC_END();
-		return bytes;
+		return bytes_tmp;
 	}
 	_load_data(data, &data_tmp);
-	PFUNC_END();
 	return 0;
 }
+
 static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, rexpr_object_result * data);
 static bytes_t check_rexpr_object_type_STAR(rexpr_object * obj, rexpr_object_result * data)
 {

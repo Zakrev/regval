@@ -1,4 +1,4 @@
-#define DBG_LVL 2
+#define DBG_LVL 1
 #include "../debug.h"
 
 #include "../encoding/utf_8.h"

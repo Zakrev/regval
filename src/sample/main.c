@@ -39,14 +39,15 @@ int main()
 	long long end;
 	rexpr_object_result res;
 	_gns_data gns_data;
+	//char * pattern = "He";
 	//char * pattern = "He{1,2}(l)";
 	//char * pattern = "He<gr1>(l)<gr1>o";
-	//char * pattern = "(^(o).)*";
+	//char * pattern = "(.^(o))*";
 	//char * pattern = "H|((<e>ll<o>)<e>(e)<o>(o)(<o>r)(<o>{1,3}(.)))*";
-	//char * pattern = "H|((<e>ll<o>)<e>(e)<o>(o)(<o>r)({0,1}(<o>){1,10}(.^(!))))*";	
-	//char * pattern = "<e><e><e><H>(Hello)";	//проверить в multiline
-	
-	
+	//char * pattern = "H|((<e>ll<o>)<e>(e)<o>(o)(<o>r)({0,1}(<o>){1,10}(^(!).)))*";
+	char * pattern = "<e><e><e>Hello";	//проверить в multiline
+
+
 	char * strs[] = {"Hel", "l", "o Worl", "d", "!"};
 	unsigned int strs_size = sizeof(strs) / sizeof(char *);
 	
