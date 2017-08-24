@@ -32,6 +32,43 @@ void _get_next_str(char ** str, ssize_t * start, ssize_t * end, unsigned int * l
 	*end = strlen(*str) - 1;
 }
 
+void for_each_group_result(char ** strs, rexpr_object_result * res)
+{
+	unsigned int g_idx;
+
+	if(res->group_result == NULL)
+		return;
+	for(g_idx = 0; g_idx < res->group_result_size; g_idx++){
+		printf("group: %u\n", g_idx);
+		rexpr_object_result_group * g_res = res->group_result[g_idx];
+		while(g_res != NULL){
+			unsigned int l_idx = g_res->line_start;
+			if(l_idx == g_res->line_end){
+				//printf("start/end: l/s/e: %d/%d/%d\n", (int)l_idx, (int)g_res->start, (int)g_res->end);
+				write(1, "'", 1);
+				write(1, strs[l_idx] + g_res->start, (g_res->end - g_res->start) + 1);
+				write(1, "'\n", 2);
+			} else {
+				//printf("start: l/s/e: %d/%d/%d\n", (int)l_idx, (int)g_res->start, (int)strlen(strs[l_idx]) - 1);
+				write(1, "'", 1);
+				write(1, strs[l_idx] + g_res->start, strlen(strs[l_idx]));
+				write(1, "' ", 2);
+				for(l_idx = l_idx + 1; l_idx < g_res->line_end; l_idx++){
+					//printf("       l/s/e: %d/%d/%d\n", (int)l_idx, 0, (int)strlen(strs[l_idx]) - 1);
+					write(1, "'", 1);
+					write(1, strs[l_idx], strlen(strs[l_idx]));
+					write(1, "' ", 2);
+				}
+				//printf("end:   l/s/e: %d/%d/%d\n", (int)l_idx, 0, (int)g_res->end);
+				write(1, "'", 1);
+				write(1, strs[l_idx], (g_res->end - g_res->start) + 1);
+				write(1, "'\n", 2);
+			}
+			g_res = g_res->next;
+		}
+	}
+}
+
 int main()
 {
 	rexpr_object expr;
@@ -53,7 +90,9 @@ int main()
 	//char * pattern = "{1,3}(|((П<gr1>(р)ивет ми<gr1>!)([A-Za-z ]*!)))";
 	//char * pattern = "(.^(o))*";
 	//char * pattern = "[А-Яа-яA-Za-z/n/t/0 !]*";
-	char * pattern = "<1>(<2>([А-Яа-я]*)([ !]*)<3>([A-Za-z]*))<1><1><1>";
+	//char * pattern = "<1>(<2>([А-Яа-я]*)([ !]*)<3>([A-Za-z]*))<1><1><1>";
+
+	char * pattern = "[А-Яа-я !]*<1>([A-Za-z !]*)";
 
 	char * strs[] = {"При", "вет ", "мир! ", "Hel", "l", "o Worl", "d", "!"};
 	unsigned int strs_size = sizeof(strs) / sizeof(char *);
@@ -77,6 +116,8 @@ int main()
 				idx++;
 			}
 			write(1, res.str, res.start);
+			write(1, "\n", 1);
+			for_each_group_result(strs, &res);
 		}
 			
 		printf("\nResult: %lld\n", end);

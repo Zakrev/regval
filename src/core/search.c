@@ -1,4 +1,4 @@
-#define DBG_LVL 2
+#define DBG_LVL 1
 #include "../debug.h"
 
 #include "../encoding/utf_8.h"
@@ -714,7 +714,7 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 				child = child->next;
 			}
 			if(obj->s_type == rexpr_object_type_second_ANGLE_BRACKETS_OPEN && data->group_result != NULL){
-				rg_idx = data->group_result_size - obj->data.group_id + 1;
+				rg_idx = data->group_result_size - obj->data.group_id;
 				if(data->group_result_size < rg_idx || rg_idx <= 0){
 					_load_data(data, &data_tmp);
 					PERR("unexpected index: %u / [1,%u]", rg_idx, data->group_result_size);
@@ -727,9 +727,16 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 					return -1;
 				}
 				rg->line_start = data_tmp.line;
-				rg->start = data_tmp.start;
 				rg->line_end = data->line;
-				rg->end = data->start;
+				if(data_tmp.start == 0)
+					rg->start = 0;
+				else
+					rg->start = data_tmp.start;
+				if(data->start == 0)
+					rg->end = 0;
+				else
+					rg->end = data->start - 1;
+				rg->next = NULL;
 				if(data->group_result[rg_idx] != NULL){
 					rg->next = data->group_result[rg_idx];
 				}
@@ -770,7 +777,8 @@ long long check_str_rexpr_object(rexpr_object * pattern, char * str, bytes_t str
 				PERR("ptr is NULL");
 				return -1;
 			}
-			result->group_result_size = pattern->data.group_id;
+			bzero(result->group_result, sizeof(rexpr_object_result_group *) * (pattern->data.group_id + 1));
+			result->group_result_size = pattern->data.group_id + 1;
 		}
 	}
 	result->str = (uchar_t *)str;
