@@ -7,15 +7,15 @@
 
 /*
 	Функции поиска
-	
+
 	Все функции check_* должны возвращать количество байт, удовлетворяющих условиям obj
 	Позиция передается в data. Она должна обозначать начало проверки (с символа который находится в этой позиции)
 	Функции должны начинаться с PFUNC_START(); и информацией о позиции указателей в data:
 		PRINT("%lld / %lld\n", (long long)data->start, (long long)data->end);
 	Функции должны завершаться либо сообщением с ошибкой, либо PFUNC_END();
-	
+
 	Группы, перед проверкой условий, сохраняют состояние data. При совпадении всех своих правил, обновляют data.
-	
+
 static bytes_t check_ (rexpr_object * obj, rexpr_object_result * data)
 {
 	PFUNC_START();
@@ -24,28 +24,39 @@ static bytes_t check_ (rexpr_object * obj, rexpr_object_result * data)
 		PERR("ptr is NULL");
 		return 0;
 	}
-	
+
 	PFUNC_END();
 	return 0;
 }
 */
-static char _get_next_str(rexpr_object_result * data)
+static char _get_str_by_idx(unsigned int idx, rexpr_object_result * data, unsigned char without_pos)
 {
 	PFUNC_START();
-	if(data->get_next_str == NULL)
+	if(data->get_str_by_idx == NULL)
 		return -1;
-	PRINT("old: '");
+	PRINT("old: %u'", data->line);
 	PRINT2(data->str, data->end + 1);
 	PRINT("'\n");
-	uchar_t * old_str = data->str;
-	data->get_next_str((char **)&data->str, &data->start, &data->end, &data->line, data->get_str_data);
-	if( (void *)data->str == (void *)old_str)
+	if(without_pos){
+		bytes_t start = data->start;
+		bytes_t end = data->end;
+		data->get_str_by_idx((char **)&data->str, &start, &end, idx, data->get_str_data);
+	} else {
+		data->get_str_by_idx((char **)&data->str, &data->start, &data->end, idx, data->get_str_data);
+	}
+	if( (void *)data->str == (void *)NULL)
 		return -1;
-	PRINT("new: '");
+	data->line = idx;
+	PRINT("new %u: '", data->line);
 	PRINT2(data->str, data->end + 1);
 	PRINT("'\n");
 	PFUNC_END();
 	return 0;
+}
+
+static char _get_next_str(rexpr_object_result * data)
+{
+	return _get_str_by_idx(data->line + 1, data, 0);
 }
 
 static char _get_next_str_loop(rexpr_object_result * data)
@@ -60,7 +71,7 @@ static char _get_next_str_loop(rexpr_object_result * data)
 		return 0;
 	}
 	bytes_t tmp;
-	
+
 	while(1){
 		tmp = (data->start - data->end) - 1;
 		if(tmp < 0)
@@ -81,7 +92,27 @@ static void _save_data(rexpr_object_result * to, rexpr_object_result * from)
 static void _load_data(rexpr_object_result * to, rexpr_object_result * from)
 {
 	memcpy(to, from, sizeof(rexpr_object_result));
+	_get_str_by_idx(to->line, to, 1);
 }
+
+/*
+	Правила для функций сравнения байт и символов:
+		check_rexpr_object_type_SQUARE_BRACKETS_OPEN
+		check_rexpr_object_type_STRING
+		check_rexpr_object_type_DOT
+
+	1) Перед выполнением необходимо сохранять данные о тек.строке
+	2) После сохранения данных, необходимо сдвинуть позицию start на байт вперед
+	3) Во время проверки изменяются данные о тек.строке
+	4) В случае успешного сравнения:
+		4.1) Функция возвращает количество совпавших байт
+		4.2) Данные о тек.строке должны содержать:
+			4.2.1) Индекс строки в которой совпал последний байт
+			4.2.2) Позиция последнего совпавшего байта
+	5) В случае ошибки:
+		5.1) Восстанавливаются данные о тек.строке
+		5.2) Возвращается 0
+*/
 
 static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, rexpr_object_result * data)
 {
@@ -99,6 +130,8 @@ static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, 
 
 	_save_data(&data_tmp, data);
 
+	data->start += 1;
+
 	if(0 != _get_next_str_loop(data)){
 		_load_data(data, &data_tmp);
 		PINF("unexpected EOL");
@@ -107,6 +140,9 @@ static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, 
 
 	bytes = get_utf8_letter_size(data->str[data->start]);
 	if(bytes == 0){
+		/*_load_data(data, &data_tmp);
+		PINF("unexpected utf-8 simbol");
+		return 0;*/
 		bytes = 1;
 	}
 	range = obj->data.ch_range;
@@ -116,8 +152,11 @@ static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, 
 		}
 		range = range->next;
 	}
-	if(range == NULL)
+	if(range == NULL){
+		_load_data(data, &data_tmp);
+		PFUNC_END();
 		return 0;
+	}
 
 	offset = 0;
 	while(1){
@@ -125,7 +164,6 @@ static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, 
 			memcpy(ch + offset, data->str + data->start, 1);
 			bytes -= 1;
 			if(bytes <= 0){
-				data->start += 1;
 				break;
 			} else {
 				if(0 != _get_next_str(data)){
@@ -150,7 +188,7 @@ static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, 
 			continue;
 		}
 		memcpy(ch + offset, data->str + data->start, bytes);
-		data->start += bytes;
+		data->start += bytes - 1;
 		break;
 	}
 
@@ -181,19 +219,13 @@ static bytes_t check_rexpr_object_type_SQUARE_BRACKETS_OPEN(rexpr_object * obj, 
 		}
 		range = range->next;
 	}
-	
+	PRINT("restore\n");
 	_load_data(data, &data_tmp);
 	return 0;
 }
 
 static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_result * data)
 {
-	/*
-		Сравнивает байты с позиции data->start (включительно)
-		Возвращает количество проверенных байт
-
-		data->start будет сдвинут на возвращаемое значение (получится указатель на следующий байт после последнего совпавшего)
-	*/
 	PFUNC_START();
 	PRINT("%lld / %lld\n", (long long)data->start, (long long)data->end);
 	if(obj == NULL){
@@ -209,9 +241,11 @@ static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_r
 	rexpr_object_result data_tmp;
 	bytes_t len;
 	bytes_t offset;
-	
+
 	_save_data(&data_tmp, data);
-	
+
+	data->start += 1;
+
 	if(0 != _get_next_str_loop(data)){
 		_load_data(data, &data_tmp);
 		PINF("unexpected EOL");
@@ -234,7 +268,7 @@ static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_r
 			}
 			len -= 1;
 			if(len <= 0){
-				data->start += 1;
+				PFUNC_END();
 				return obj->data.str.len;
 			} else {
 				if(0 != _get_next_str(data)){
@@ -277,7 +311,7 @@ static bytes_t check_rexpr_object_type_STRING(rexpr_object * obj, rexpr_object_r
 			PFUNC_END();
 			return 0;
 		}
-		data->start += len;
+		data->start += len - 1;
 		PFUNC_END();
 		return obj->data.str.len;
 	}
@@ -299,6 +333,8 @@ static bytes_t check_rexpr_object_type_DOT(rexpr_object * obj, rexpr_object_resu
 
 	_save_data(&data_tmp, data);
 
+	data->start += 1;
+
 	if(0 != _get_next_str_loop(data)){
 		_load_data(data, &data_tmp);
 		PINF("unexpected EOL");
@@ -314,7 +350,6 @@ static bytes_t check_rexpr_object_type_DOT(rexpr_object * obj, rexpr_object_resu
 		if(data->start == data->end){
 			bytes -= 1;
 			if(bytes <= 0){
-				data->start += 1;
 				PFUNC_END();
 				return bytes_tmp;
 			} else {
@@ -335,7 +370,7 @@ static bytes_t check_rexpr_object_type_DOT(rexpr_object * obj, rexpr_object_resu
 			}
 			continue;
 		}
-		data->start += bytes;
+		data->start += bytes - 1;
 		PFUNC_END();
 		return bytes_tmp;
 	}
@@ -714,6 +749,8 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 				child = child->next;
 			}
 			if(obj->s_type == rexpr_object_type_second_ANGLE_BRACKETS_OPEN && data->group_result != NULL){
+				if(data_tmp.line == data->line && data_tmp.start == data->start)
+					return ret;
 				rg_idx = data->group_result_size - obj->data.group_id;
 				if(data->group_result_size < rg_idx || rg_idx <= 0){
 					_load_data(data, &data_tmp);
@@ -726,16 +763,15 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 					_load_data(data, &data_tmp);
 					return -1;
 				}
+				data_tmp.start += 1;
+				if(0 != _get_next_str_loop(&data_tmp)){
+					PINF("unexpected EOL");
+					return 0;
+				}
 				rg->line_start = data_tmp.line;
 				rg->line_end = data->line;
-				if(data_tmp.start == 0)
-					rg->start = 0;
-				else
-					rg->start = data_tmp.start;
-				if(data->start == 0)
-					rg->end = 0;
-				else
-					rg->end = data->start - 1;
+				rg->start = data_tmp.start;
+				rg->end = data->start;
 				rg->next = NULL;
 				if(data->group_result[rg_idx] != NULL){
 					rg->next = data->group_result[rg_idx];
@@ -754,35 +790,61 @@ static bytes_t check_rexpr_object_type_ROUND_BRACKETS_OPEN(rexpr_object * obj, r
 	return -1;
 }
 
-long long check_str_rexpr_object(rexpr_object * pattern, char * str, bytes_t str_len, rexpr_object_result * result)
+static void free_group_result(rexpr_object_result * result)
+{
+	if(result->group_result != NULL){
+		unsigned int g_idx;
+		for(g_idx = 0; g_idx < result->group_result_size; g_idx++){
+			rexpr_object_result_group * g_res = result->group_result[g_idx];
+			while(g_res != NULL){
+				rexpr_object_result_group * g_tmp = g_res;
+				g_res = g_res->next;
+				free(g_tmp);
+			}
+		}
+		free(result->group_result);
+	}
+	result->group_result = NULL;
+	result->group_result_size = 0;
+}
+
+long long check_str_rexpr_object3(rexpr_object * pattern, char * str, bytes_t str_len)
+{
+	rexpr_object_result result;
+	long long res;
+
+	init_rexpr_object_result(&result, str, str_len, NULL, NULL);
+	res = check_str_rexpr_object(pattern, &result);
+	clear_rexpr_object_result(&result);
+
+	return res;
+}
+
+long long check_str_rexpr_object(rexpr_object * pattern, rexpr_object_result * result)
 {
 	/*
 		Функция сравнивает строку str с паттерном pattern
-		Если result не NULL, то туда запишуться дополнительные результаты сравнения (например данные по группам)
-		После, структуру result необходимо очистить соответствующей функцией
 		Возвращает:
 				позицию после последнего совпавшего символа последней совпавшей строки		OK
-				-1																		ERR
+				-1																			ERR
 	*/
 	PFUNC_START();
-	rexpr_object_result data;
 	if(result == NULL){
-		result = &data;
-		init_rexpr_object_result(result, NULL, NULL);
-	} else {
-		clear_rexpr_object_result(result);
-		if(pattern->data.group_id > 0){
-			result->group_result = malloc(sizeof(rexpr_object_result_group *) * (pattern->data.group_id + 1));
-			if(result->group_result == NULL){
-				PERR("ptr is NULL");
-				return -1;
-			}
-			bzero(result->group_result, sizeof(rexpr_object_result_group *) * (pattern->data.group_id + 1));
-			result->group_result_size = pattern->data.group_id + 1;
-		}
+		PERR("ptr is NULL");
+		return -1;
 	}
-	result->str = (uchar_t *)str;
-	result->end = str_len - 1;
+
+	free_group_result(result);
+
+	if(pattern->data.group_id > 0){
+		result->group_result = malloc(sizeof(rexpr_object_result_group *) * (pattern->data.group_id + 1));
+		if(result->group_result == NULL){
+			PERR("ptr is NULL");
+			return -1;
+		}
+		bzero(result->group_result, sizeof(rexpr_object_result_group *) * (pattern->data.group_id + 1));
+		result->group_result_size = pattern->data.group_id + 1;
+	}
 	if(-1 == check_rexpr_object_type_ROUND_BRACKETS_OPEN(pattern, result)){
 		PFUNC_END();
 		return -1;
@@ -791,8 +853,8 @@ long long check_str_rexpr_object(rexpr_object * pattern, char * str, bytes_t str
 	return result->start;
 }
 
-char init_rexpr_object_result(rexpr_object_result * result, 
-				void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, unsigned int * line, void * get_str_data),
+char init_rexpr_object_result(rexpr_object_result * result, char * str, bytes_t str_len,
+				void (* get_str_by_idx)(char ** str, ssize_t * start, ssize_t * end, unsigned int line_idx, void * get_str_data),
 				void * get_str_data)
 {
 	/*
@@ -807,13 +869,13 @@ char init_rexpr_object_result(rexpr_object_result * result,
 		PERR("ptr is NULL");
 		return -1;
 	}
-	result->str = NULL;
-	result->start = 0;
-	result->end = 0;
+	result->str = (uchar_t *)str;
+	result->start = -1;
+	result->end = str_len - 1;
 	result->group_result = NULL;
 	result->group_result_size = 0;
 	result->line = 0;
-	result->get_next_str = get_next_str;
+	result->get_str_by_idx = get_str_by_idx;
 	result->get_str_data = get_str_data;
 	PFUNC_END();
 	return 0;
@@ -831,10 +893,7 @@ void clear_rexpr_object_result(rexpr_object_result * result)
 	result->str = NULL;
 	result->start = 0;
 	result->end = 0;
-	if(result->group_result_size > 0 && result->group_result != NULL)
-		free(result->group_result);
-	result->group_result = NULL;
-	result->group_result_size = 0;
+	free_group_result(result);
 	result->line = 0;
 	PFUNC_END();
 }

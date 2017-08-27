@@ -62,7 +62,7 @@ struct rexpr_object {
 	*/
 	rexpr_object * next;
 	rexpr_object * child;
-	
+
 	uchar_t type;
 	uchar_t s_type;
 
@@ -99,7 +99,7 @@ struct rexpr_object_result_group {
 	//начало строки
 	unsigned int line_start;
 	bytes_t start;
-	
+
 	//конец строки
 	unsigned int line_end;
 	bytes_t end;
@@ -110,26 +110,27 @@ struct rexpr_object_result {
 	/*
 		Структура описывает параметры и результаты сравнения строки с регулярным выражением
 	*/
-	uchar_t * str;					//выражение
+	uchar_t * str;
 	bytes_t start;					//начало строки
 	bytes_t end;					//конец строки
 
 	rexpr_object_result_group ** group_result;	//массив результатов групп, индекс массива - порядковый номер группы (от 1 до 4294967295) в паттерне (с лева на право)
 	unsigned int group_result_size;
-	unsigned int line;							//количество переходов на новую строку, используется для позиционирования результатов групп
+	unsigned int line;							//индекс текущей строки
 
 	/*
 		Многострочный поиск
 		get_next_str - указатель на функцию, определенную пользователем. Функция должна возвращать:
-			str	указатель на новые данные, если данных нет, то должна быть равна переданному значению (т.е. меняться не должна)
-			start	начало данных
-			end		конец данных (НЕ ДЛИННА)
-			line - id новой строки (id == 0 - первая строка)
+			*str		указатель на новые данные, если данных нет, то должна быть равна NULL
+			*start		начало данных
+			*end		конец данных (НЕ ДЛИННА)
+			line	индекс строки, которую необходимо получить (начиная с 0)
 		get_str_data - вспомогательная структура, может быть NULL
 
-		Функция должна уметь возвращать следующую строку относительно параметра line (в функцию передается id текущей строки)
+		Функция должна уметь возвращать строку относительно параметра line
+		Если строк больше нет или возникла ошибка, то в *str необходимо передать NULL
 	*/
-	void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, unsigned int * line, void * get_next_str_data);
+	void (* get_str_by_idx)(char ** str, ssize_t * start, ssize_t * end, unsigned int line_idx, void * get_str_data);
 	void * get_str_data;
 };
 
@@ -163,7 +164,8 @@ void free_rexpr(rexpr_object * parent);
 			позицию после последнего совпавшего символа последней совпавшей строки		OK
 			-1																		ERR
 */
-long long check_str_rexpr_object(rexpr_object * pattern, char * str, bytes_t str_len, rexpr_object_result * result);
+long long check_str_rexpr_object3(rexpr_object * pattern, char * str, bytes_t str_len);
+long long check_str_rexpr_object(rexpr_object * pattern, rexpr_object_result * result);
 
 /*
 	Инициализирует структуру result.
@@ -172,9 +174,9 @@ long long check_str_rexpr_object(rexpr_object * pattern, char * str, bytes_t str
 			-1		ERR
 			0		OK
 */
-char init_rexpr_object_result(rexpr_object_result * result, 
-				void (* get_next_str)(char ** str, ssize_t * start, ssize_t * end, unsigned int * line, void * get_str_data),
-				void * data);
+char init_rexpr_object_result(rexpr_object_result * result, char * str, bytes_t str_len,
+				void (* get_str_by_idx)(char ** str, ssize_t * start, ssize_t * end, unsigned int line_idx, void * get_str_data),
+				void * get_str_data);
 
 /*
 	Очищает структуру result
