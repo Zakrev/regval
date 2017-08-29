@@ -433,12 +433,16 @@ static char parse_rexpr_object_create_SQUARE_BRACKETS_OPEN_create_ch(rexpr_objec
 		return -1;
 	}
 	ch_range->bytes = bytes;
+	ch_range->next = NULL;
+
 	bzero(ch_range->l, MAX_CH_LEN);
 	memcpy(ch_range->l, l, bytes);
-	bzero(ch_range->r, MAX_CH_LEN);
-	if(r != NULL)
+
+	if(r != NULL){
+		bzero(ch_range->r, MAX_CH_LEN);
 		memcpy(ch_range->r, r, bytes);
-	ch_range->next = NULL;
+	}
+
 	if(parent->data.ch_range == NULL){
 		parent->data.ch_range = ch_range;
 	} else {
@@ -477,6 +481,7 @@ static char parse_rexpr_object_create_SQUARE_BRACKETS_OPEN(rexpr_object * parent
 	}
 	ro->child = NULL;
 	ro->next = NULL;
+	ro->data.ch_range = NULL;
 	uchar_t esc;
 	unsigned char bytes;
 

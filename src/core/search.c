@@ -91,8 +91,12 @@ static void _save_data(rexpr_object_result * to, rexpr_object_result * from)
 
 static void _load_data(rexpr_object_result * to, rexpr_object_result * from)
 {
-	memcpy(to, from, sizeof(rexpr_object_result));
-	_get_str_by_idx(to->line, to, 1);
+	if(to->line == from->line){
+		memcpy(to, from, sizeof(rexpr_object_result));
+	} else {
+		memcpy(to, from, sizeof(rexpr_object_result));
+		_get_str_by_idx(to->line, to, 1);
+	}
 }
 
 /*
