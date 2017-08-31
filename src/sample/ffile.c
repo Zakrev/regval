@@ -147,9 +147,8 @@ int main(int args, char ** arg)
 			fprintf(stderr, "result: %lld\n", (long long)end);
 			print_str(sinf.fd, line * STRING_BUFF_SIZE + start, result.line * STRING_BUFF_SIZE + end);
 			fprintf(stderr, "\n");
-			start = result.start + 1;
+			start = result.start;
 			line = result.line;
-			result.start += 1;
 		} else {
 			result.start += 1;
 			start += 1;
